@@ -9,6 +9,8 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
+import plotly.graph_objects as go
+from streamlit_plotly_events import plotly_events
 import sys
 from pathlib import Path
 
@@ -93,6 +95,176 @@ def main():
         page_icon="🎹",
         layout="wide"
     )
+
+    # Create interactive Plotly coordinate system
+    fig = go.Figure()
+
+    # Add tonefield ellipse (using Scatter with fill for plotly_events compatibility)
+    a = 0.60  # short axis (S direction)
+    b = 0.85  # long axis (L direction)
+
+    # Generate ellipse points
+    theta = np.linspace(0, 2*np.pi, 200)
+    ellipse_x = a * np.cos(theta)
+    ellipse_y = b * np.sin(theta)
+
+    # Add ellipse as filled scatter trace
+    fig.add_trace(go.Scatter(
+        x=ellipse_x,
+        y=ellipse_y,
+        fill='toself',
+        fillcolor='rgba(173, 216, 230, 0.5)',
+        line=dict(color='black', width=3),
+        mode='lines',
+        name='Tonefield',
+        showlegend=True,
+        hoverinfo='skip'
+    ))
+
+    # Add square boundary
+    fig.add_shape(
+        type="rect",
+        x0=-1, y0=-1, x1=1, y1=1,
+        line=dict(color="blue", width=3),
+        fillcolor="rgba(0,0,0,0)"
+    )
+
+    # Add coordinate axes
+    fig.add_shape(type="line", x0=-1, y0=0, x1=1, y1=0,
+                  line=dict(color="black", width=2))
+    fig.add_shape(type="line", x0=0, y0=-1, x1=0, y1=1,
+                  line=dict(color="black", width=2))
+
+    # Add origin marker
+    fig.add_trace(go.Scatter(
+        x=[0], y=[0],
+        mode='markers',
+        marker=dict(size=12, color='red', symbol='circle'),
+        name='Origin (0,0)',
+        hovertemplate='Origin: (0, 0)<extra></extra>'
+    ))
+
+    # Add selected coordinates if any
+    if 'selected_coords' in st.session_state and st.session_state['selected_coords']:
+        coords = st.session_state['selected_coords']
+        x_vals = [c[0] for c in coords]
+        y_vals = [c[1] for c in coords]
+
+        fig.add_trace(go.Scatter(
+            x=x_vals,
+            y=y_vals,
+            mode='markers+text',
+            marker=dict(size=10, color='green', symbol='x'),
+            text=[f"{i+1}" for i in range(len(coords))],
+            textposition="top center",
+            name='Selected Points',
+            hovertemplate='Point %{text}: (%{x:.3f}, %{y:.3f})<extra></extra>'
+        ))
+
+    # Update layout - disable zoom on drag, enable click selection
+    fig.update_layout(
+        title=dict(
+            text='Interactive Coordinate System: Click to Select Coordinates',
+            font=dict(size=18, family='Arial Black')
+        ),
+        xaxis=dict(
+            title='X',
+            range=[-1.1, 1.1],
+            scaleanchor="y",
+            scaleratio=1,
+            gridcolor='lightgray',
+            gridwidth=1,
+            zeroline=True,
+            zerolinecolor='black',
+            zerolinewidth=2
+        ),
+        yaxis=dict(
+            title='Y',
+            range=[-1.1, 1.1],
+            gridcolor='lightgray',
+            gridwidth=1,
+            zeroline=True,
+            zerolinecolor='black',
+            zerolinewidth=2
+        ),
+        width=700,
+        height=700,
+        hovermode='closest',
+        showlegend=True,
+        plot_bgcolor='white',
+        dragmode=False  # Disable drag to zoom
+    )
+
+    # Display interactive plot with click events
+    st.info("👆 Click anywhere on the plot to select coordinates")
+
+    selected_points = plotly_events(
+        fig,
+        click_event=True,
+        hover_event=False,
+        select_event=False,
+        override_height=700,
+        override_width=700
+    )
+
+    # Handle click event
+    if selected_points:
+        clicked_x = selected_points[0]['x']
+        clicked_y = selected_points[0]['y']
+
+        # Display clicked coordinate
+        st.success(f"🎯 Clicked: ({clicked_x:.3f}, {clicked_y:.3f})")
+
+        # Auto-add to selected coordinates
+        if 'selected_coords' not in st.session_state:
+            st.session_state['selected_coords'] = []
+
+        # Add only if not duplicate
+        new_coord = (round(clicked_x, 3), round(clicked_y, 3))
+        if new_coord not in st.session_state['selected_coords']:
+            st.session_state['selected_coords'].append(new_coord)
+            st.rerun()
+
+    # Manual coordinate input (optional)
+    st.markdown("---")
+    with st.expander("⌨️ Manual Coordinate Input (Optional)"):
+        col1, col2, col3 = st.columns([1, 1, 1])
+
+        with col1:
+            x_coord = st.number_input("X coordinate", min_value=-1.0, max_value=1.0, value=0.0, step=0.01, format="%.3f")
+
+        with col2:
+            y_coord = st.number_input("Y coordinate", min_value=-1.0, max_value=1.0, value=0.0, step=0.01, format="%.3f")
+
+        with col3:
+            st.write("")  # Spacing
+            st.write("")  # Spacing
+            if st.button("➕ Add Point", use_container_width=True):
+                if 'selected_coords' not in st.session_state:
+                    st.session_state['selected_coords'] = []
+                st.session_state['selected_coords'].append((x_coord, y_coord))
+                st.rerun()
+
+    # Display selected coordinates
+    if 'selected_coords' in st.session_state and st.session_state['selected_coords']:
+        st.markdown("### 📋 Selected Coordinates")
+
+        coords_text = ""
+        for i, (x, y) in enumerate(st.session_state['selected_coords'], 1):
+            coords_text += f"{i}. ({x:.3f}, {y:.3f})\n"
+
+        st.text_area("Coordinates List", coords_text, height=150)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("📋 Copy to Clipboard", use_container_width=True):
+                st.code(coords_text, language=None)
+                st.info("👆 Click the copy icon above to copy coordinates")
+
+        with col2:
+            if st.button("🗑️ Clear All", use_container_width=True):
+                st.session_state['selected_coords'] = []
+                st.rerun()
 
     # Title
     st.title("🎹 Tuning Lab: Piano Tuning Laboratory")
