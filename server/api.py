@@ -7,6 +7,7 @@ For integration with Flutter app or external clients
 """
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional
 import sys
@@ -22,6 +23,15 @@ app = FastAPI(
     title="Tuning Lab API",
     description="Piano tuning error to tonefield coordinate conversion API",
     version="0.1.0"
+)
+
+# CORS settings for Next.js frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Next.js dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
