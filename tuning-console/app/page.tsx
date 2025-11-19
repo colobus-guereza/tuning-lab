@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import TonefieldCanvas from "./components/TonefieldCanvas";
 import ThemeToggle from "./components/ThemeToggle";
+import { supabase, HitPointData } from "@/lib/supabase";
 
 export default function HomePage() {
   const [tonic, setTonic] = useState(0);
@@ -16,64 +17,164 @@ export default function HomePage() {
   const [selectedCoords, setSelectedCoords] = useState<
     Array<{ x: number; y: number }>
   >([]);
-  const [showInputFields, setShowInputFields] = useState(false);
   const [hitPointCoord, setHitPointCoord] = useState<{
     x: number;
     y: number;
   } | null>(null);
   const [hitPointStrength, setHitPointStrength] = useState<number | null>(null);
+  const [hitPointLocation, setHitPointLocation] = useState<"external" | "internal" | null>("internal");
+  const [hitPointIntent, setHitPointIntent] = useState<string>("");
+  const [recentHitPoints, setRecentHitPoints] = useState<HitPointData[]>([]);
+  const [selectedHitPoint, setSelectedHitPoint] = useState<HitPointData | null>(null);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
-  const handlePredict = () => {
-    setShowInputFields(true);
-    setHitPointCoord(null);
-    setHitPointStrength(null);
+  // 최근 타점 데이터 불러오기
+  const fetchRecentHitPoints = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("hit_points")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error("데이터 불러오기 오류:", error);
+      } else if (data) {
+        setRecentHitPoints(data);
+      }
+    } catch (err) {
+      console.error("데이터 불러오기 중 오류:", err);
+    }
   };
 
+  // 컴포넌트 마운트 시 데이터 불러오기
+  useEffect(() => {
+    fetchRecentHitPoints();
+  }, []);
+
   const handleCanvasClick = (x: number, y: number) => {
-    if (showInputFields) {
-      // When input fields are shown, clicking sets the hit point coordinate
-      setHitPointCoord({ x, y });
-    } else {
-      // Normal behavior: add to selected coordinates list
-      setSelectedCoords([...selectedCoords, { x, y }]);
-    }
+    // Clicking sets the hit point coordinate
+    setHitPointCoord({ x, y });
   };
 
   const handleClearCoords = () => {
     setSelectedCoords([]);
   };
 
-  const handleSaveHitPoint = () => {
-    // TODO: Database save functionality will be implemented later
-    console.log("Saving hit point:", {
-      tonic,
-      octave,
-      fifth,
-      coordinate: hitPointCoord,
-      strength: hitPointStrength,
-    });
-    alert("Hit point data ready to save (DB connection pending)");
+  const handleRandomize = () => {
+    // Generate random numbers between -30 and +30
+    const randomFifth = Math.random() * 60 - 30; // -30 to +30
+    const randomOctave = Math.random() * 60 - 30;
+    const randomTonic = Math.random() * 60 - 30;
+
+    setFifth(parseFloat(randomFifth.toFixed(2)));
+    setOctave(parseFloat(randomOctave.toFixed(2)));
+    setTonic(parseFloat(randomTonic.toFixed(2)));
   };
 
-  const isSaveEnabled = hitPointCoord !== null && hitPointStrength !== null;
+  const handleSaveHitPoint = async () => {
+    if (!hitPointCoord || hitPointStrength === null || !hitPointLocation || !hitPointIntent.trim()) {
+      alert("모든 필드를 입력해주세요");
+      return;
+    }
+
+    // Supabase 환경 변수 확인
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl || supabaseUrl === 'your-project-url') {
+      alert("⚠️ Supabase가 아직 설정되지 않았습니다.\n\nSUPABASE_SETUP.md 파일을 참고하여:\n1. Supabase 프로젝트 생성\n2. .env.local 파일에 URL과 API 키 입력\n3. 개발 서버 재시작");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("hit_points")
+        .insert([
+          {
+            tonic,
+            octave,
+            fifth,
+            coordinate_x: hitPointCoord.x,
+            coordinate_y: hitPointCoord.y,
+            strength: hitPointStrength,
+            location: hitPointLocation,
+            intent: hitPointIntent,
+          },
+        ]);
+
+      if (error) {
+        console.error("저장 오류:", error);
+        alert(`저장 실패: ${error.message}`);
+      } else {
+        // 저장 후 모든 입력 필드 초기화
+        setTonic(0);
+        setOctave(0);
+        setFifth(0);
+        setHitPointCoord(null);
+        setHitPointStrength(null);
+        setHitPointLocation("internal");
+        setHitPointIntent("");
+        // 최근 데이터 새로고침
+        fetchRecentHitPoints();
+      }
+    } catch (err) {
+      console.error("저장 중 오류 발생:", err);
+      alert("저장 중 오류가 발생했습니다. 콘솔을 확인해주세요.");
+    }
+  };
+
+  const isSaveEnabled =
+    hitPointCoord !== null &&
+    hitPointStrength !== null &&
+    hitPointLocation !== null &&
+    hitPointIntent.trim() !== "";
+
+  // 타점 카드 클릭 핸들러
+  const handleHitPointCardClick = (hitPoint: HitPointData) => {
+    const cardId = hitPoint.id!;
+    const newExpanded = new Set(expandedCards);
+
+    if (expandedCards.has(cardId)) {
+      // 이미 펼쳐진 카드를 클릭하면 접기
+      newExpanded.delete(cardId);
+      // 접을 때 선택 해제
+      if (selectedHitPoint?.id === cardId) {
+        setSelectedHitPoint(null);
+      }
+    } else {
+      // 접힌 카드를 클릭하면 펼치고 선택
+      newExpanded.add(cardId);
+      setSelectedHitPoint(hitPoint);
+    }
+
+    setExpandedCards(newExpanded);
+  };
 
   return (
     <main className="min-h-screen p-4 sm:p-6 lg:p-8 bg-gray-50 dark:bg-gray-900 transition-colors">
       <ThemeToggle />
 
       <h1 className="text-3xl sm:text-4xl font-bold mb-6 sm:mb-8 text-center text-gray-900 dark:text-white">
-        Tuning Lab Console
+        조율 실험실 콘솔
       </h1>
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
+      <div className="max-w-[1920px] mx-auto grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
         {/* Left: Controls */}
         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg transition-colors">
-          <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Tuning Error Input</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">조율오차 입력</h2>
+            <button
+              onClick={handleRandomize}
+              className="w-10 h-10 rounded-full bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 text-white font-bold text-lg flex items-center justify-center transition-colors shadow-md"
+              title="Generate random values (-30 ~ +30)"
+            >
+              R
+            </button>
+          </div>
 
           <div className="space-y-3 sm:space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Fifth (Hz)
+                5도 (Hz)
               </label>
               <input
                 type="number"
@@ -86,7 +187,7 @@ export default function HomePage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Octave (Hz)
+                옥타브 (Hz)
               </label>
               <input
                 type="number"
@@ -99,7 +200,7 @@ export default function HomePage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Tonic (Hz)
+                토닉 (Hz)
               </label>
               <input
                 type="number"
@@ -109,25 +210,51 @@ export default function HomePage() {
                 step="0.1"
               />
             </div>
-
-            <button
-              onClick={handlePredict}
-              className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors"
-            >
-              Add Optimal Hit Point Data
-            </button>
           </div>
 
           {/* Hit Point Input Fields */}
-          {showInputFields && (
-            <div className="mt-4 sm:mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg space-y-3">
+            <div className={`mt-4 sm:mt-6 p-4 border rounded-lg space-y-3 transition-all ${
+              isSaveEnabled
+                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 opacity-100"
+                : "bg-gray-50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600 opacity-60"
+            }`}>
               <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-3">
-                Hit Point Data Entry
+                타점 파라미터
               </h3>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Coordinate (click on tonefield)
+                  위치
+                </label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setHitPointLocation("internal")}
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                      hitPointLocation === "internal"
+                        ? "bg-blue-600 text-white dark:bg-blue-500"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    내부
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHitPointLocation("external")}
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                      hitPointLocation === "external"
+                        ? "bg-blue-600 text-white dark:bg-blue-500"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    외부
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  좌표 (톤필드 클릭)
                 </label>
                 <input
                   type="text"
@@ -137,14 +264,14 @@ export default function HomePage() {
                       : ""
                   }
                   readOnly
-                  placeholder="Click on the tonefield to select coordinate"
+                  placeholder="톤필드를 클릭하여 좌표를 선택하세요"
                   className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white cursor-not-allowed"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Strength
+                  강도
                 </label>
                 <input
                   type="number"
@@ -154,9 +281,22 @@ export default function HomePage() {
                       e.target.value ? parseFloat(e.target.value) : null
                     )
                   }
-                  placeholder="Enter strength value"
+                  placeholder="강도 값을 입력하세요"
                   className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
                   step="0.1"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  의도
+                </label>
+                <input
+                  type="text"
+                  value={hitPointIntent}
+                  onChange={(e) => setHitPointIntent(e.target.value)}
+                  placeholder="의도를 간단히 입력하세요"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
                 />
               </div>
 
@@ -165,19 +305,18 @@ export default function HomePage() {
                 disabled={!isSaveEnabled}
                 className={`w-full py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold transition-colors ${
                   isSaveEnabled
-                    ? "bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white"
+                    ? "bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white"
                     : "bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                 }`}
               >
-                Save Optimal Hit Point Based on Tuning Error
+                타점 입력
               </button>
             </div>
-          )}
 
           {result && (
             <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg transition-colors">
               <h3 className="font-semibold text-green-900 dark:text-green-300 mb-2">
-                Prediction Result
+                예측 결과
               </h3>
               <div className="space-y-1 text-sm text-green-800 dark:text-green-200">
                 <div>
@@ -199,13 +338,13 @@ export default function HomePage() {
             <div className="mt-4 sm:mt-6">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
-                  Selected Coordinates ({selectedCoords.length})
+                  선택된 좌표 ({selectedCoords.length})
                 </h3>
                 <button
                   onClick={handleClearCoords}
                   className="text-xs sm:text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
                 >
-                  Clear All
+                  모두 지우기
                 </button>
               </div>
               <div className="max-h-48 overflow-y-auto space-y-1 text-xs sm:text-sm bg-gray-50 dark:bg-gray-700 p-2 sm:p-3 rounded transition-colors">
@@ -222,31 +361,140 @@ export default function HomePage() {
         {/* Right: Tonefield Canvas */}
         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg transition-colors">
           <h2 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white">
-            Tonefield Coordinate System
+            톤필드좌표계
           </h2>
           <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3 sm:mb-4">
-            Click anywhere on the tonefield to select coordinates
+            톤필드의 아무 곳이나 클릭하여 좌표를 선택하세요
           </p>
           <TonefieldCanvas
             selectedCoords={selectedCoords}
             onCoordClick={handleCanvasClick}
             hitPointCoord={hitPointCoord}
+            selectedHitPoint={selectedHitPoint}
           />
 
           {/* Reset button below canvas */}
           {selectedCoords.length > 0 && (
             <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
               <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                {selectedCoords.length} coordinate{selectedCoords.length > 1 ? 's' : ''} selected
+                {selectedCoords.length}개 좌표 선택됨
               </div>
               <button
                 onClick={handleClearCoords}
                 className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
               >
-                Clear All Coordinates
+                모든 좌표 지우기
               </button>
             </div>
           )}
+        </div>
+
+        {/* Right: Recent Hit Points */}
+        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg transition-colors">
+          <h2 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white">
+            최근 타점
+          </h2>
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3 sm:mb-4">
+            저장된 타점을 클릭하여 좌표계에 표시
+          </p>
+
+          <div className="space-y-3 max-h-[800px] overflow-y-auto">
+            {recentHitPoints.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                저장된 타점 데이터가 없습니다
+              </div>
+            ) : (
+              recentHitPoints.map((hitPoint) => {
+                const isExpanded = expandedCards.has(hitPoint.id!);
+                const isSelected = selectedHitPoint?.id === hitPoint.id;
+
+                return (
+                  <div
+                    key={hitPoint.id}
+                    onClick={() => handleHitPointCardClick(hitPoint)}
+                    className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                      isSelected
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                        : "border-gray-300 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-700 bg-white dark:bg-gray-700"
+                    }`}
+                  >
+                    {isExpanded ? (
+                      // 펼쳐진 상태: 전체 정보 표시
+                      <>
+                        {/* 의도 (가장 우선) */}
+                        <div className="mb-3">
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">의도</div>
+                          <div className="text-base font-semibold text-gray-900 dark:text-white">
+                            {hitPoint.intent}
+                          </div>
+                        </div>
+
+                        {/* 좌표 정보 */}
+                        <div className="grid grid-cols-3 gap-2 mb-2">
+                          <div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">위치</div>
+                            <div className="text-sm text-gray-700 dark:text-gray-300">
+                              {hitPoint.location === "internal" ? "내부" : "외부"}
+                            </div>
+                          </div>
+                          <div className="col-span-2">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">좌표</div>
+                            <div className="text-sm text-gray-700 dark:text-gray-300">
+                              ({hitPoint.coordinate_x.toFixed(3)}, {hitPoint.coordinate_y.toFixed(3)})
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 조율 오차 정보 */}
+                        <div className="grid grid-cols-3 gap-2 mb-2 text-xs">
+                          <div>
+                            <div className="text-gray-500 dark:text-gray-400">5도</div>
+                            <div className="text-gray-700 dark:text-gray-300">{hitPoint.fifth}Hz</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-500 dark:text-gray-400">옥타브</div>
+                            <div className="text-gray-700 dark:text-gray-300">{hitPoint.octave}Hz</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-500 dark:text-gray-400">토닉</div>
+                            <div className="text-gray-700 dark:text-gray-300">{hitPoint.tonic}Hz</div>
+                          </div>
+                        </div>
+
+                        {/* 강도 및 시간 */}
+                        <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-600">
+                          <div>강도: {hitPoint.strength >= 0 ? '+' : ''}{hitPoint.strength}</div>
+                          <div>
+                            {hitPoint.created_at
+                              ? new Date(hitPoint.created_at).toLocaleString("ko-KR", {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : ""}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      // 접힌 상태: 강도, I/E, 의도만 한 줄로 표시
+                      <div className="flex items-center gap-3 text-sm">
+                        <div className="font-semibold text-gray-900 dark:text-white">
+                          {hitPoint.strength >= 0 ? '+' : ''}{hitPoint.strength}
+                        </div>
+                        <div className="px-2 py-1 rounded bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium">
+                          {hitPoint.location === "internal" ? "I" : "E"}
+                        </div>
+                        <div className="flex-1 text-gray-700 dark:text-gray-300 truncate">
+                          {hitPoint.intent}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
     </main>

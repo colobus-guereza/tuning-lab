@@ -2,18 +2,31 @@
 
 import { useRef, useEffect } from "react";
 
+interface HitPointData {
+  id?: string;
+  coordinate_x: number;
+  coordinate_y: number;
+  strength: number;
+  location: string;
+  intent: string;
+}
+
 interface TonefieldCanvasProps {
   selectedCoords: Array<{ x: number; y: number }>;
   onCoordClick: (x: number, y: number) => void;
   hitPointCoord?: { x: number; y: number } | null;
+  selectedHitPoint?: HitPointData | null;
 }
 
 export default function TonefieldCanvas({
   selectedCoords,
   onCoordClick,
   hitPointCoord,
+  selectedHitPoint,
 }: TonefieldCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const animationStartRef = useRef<number>(0);
 
   const CANVAS_SIZE = 600;
   const PADDING = 50;
@@ -190,6 +203,34 @@ export default function TonefieldCanvas({
       ctx.arc(canvasX, canvasY, 6, 0, 2 * Math.PI);
       ctx.fill();
     }
+
+    // Draw selected hit point from recent list with animation
+    if (selectedHitPoint) {
+      const canvasX = coordToCanvas(selectedHitPoint.coordinate_x, "x");
+      const canvasY = coordToCanvas(selectedHitPoint.coordinate_y, "y");
+
+      // Calculate animation progress
+      const elapsed = Date.now() - animationStartRef.current;
+      const duration = 2000; // 2 seconds for one full cycle
+      const progress = (elapsed % duration) / duration;
+
+      // Pulse animation for the ring
+      const pulseScale = 1 + Math.sin(progress * Math.PI * 2) * 0.3; // oscillate between 0.7 and 1.3
+      const pulseOpacity = 0.6 + Math.sin(progress * Math.PI * 2) * 0.4; // oscillate between 0.2 and 1.0
+
+      // Draw animated outer ring
+      ctx.strokeStyle = `rgba(239, 68, 68, ${pulseOpacity})`; // red-500 with varying opacity
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(canvasX, canvasY, 10 * pulseScale, 0, 2 * Math.PI);
+      ctx.stroke();
+
+      // Draw static inner circle
+      ctx.fillStyle = "#ef4444"; // red-500
+      ctx.beginPath();
+      ctx.arc(canvasX, canvasY, 6, 0, 2 * Math.PI);
+      ctx.fill();
+    }
   };
 
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -217,8 +258,33 @@ export default function TonefieldCanvas({
   };
 
   useEffect(() => {
-    drawTonefield();
-  }, [selectedCoords, hitPointCoord]);
+    // Cancel any existing animation frame
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    if (selectedHitPoint) {
+      // Start animation when a hit point is selected
+      animationStartRef.current = Date.now();
+
+      const animate = () => {
+        drawTonefield();
+        animationFrameRef.current = requestAnimationFrame(animate);
+      };
+
+      animate();
+    } else {
+      // Just draw once if no animation needed
+      drawTonefield();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [selectedCoords, hitPointCoord, selectedHitPoint]);
 
   return (
     <canvas
