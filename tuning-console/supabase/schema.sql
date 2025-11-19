@@ -36,3 +36,7 @@ CREATE POLICY "Enable read access for all users" ON hit_points
 -- 모든 사용자가 삽입 가능하도록 정책 설정
 CREATE POLICY "Enable insert access for all users" ON hit_points
   FOR INSERT WITH CHECK (true);
+
+-- 모든 사용자가 삭제 가능하도록 정책 설정
+CREATE POLICY "Enable delete access for all users" ON hit_points
+  FOR DELETE USING (true);

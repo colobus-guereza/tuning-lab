@@ -131,22 +131,56 @@ export default function HomePage() {
   // 타점 카드 클릭 핸들러
   const handleHitPointCardClick = (hitPoint: HitPointData) => {
     const cardId = hitPoint.id!;
-    const newExpanded = new Set(expandedCards);
 
     if (expandedCards.has(cardId)) {
       // 이미 펼쳐진 카드를 클릭하면 접기
-      newExpanded.delete(cardId);
+      setExpandedCards(new Set());
       // 접을 때 선택 해제
-      if (selectedHitPoint?.id === cardId) {
-        setSelectedHitPoint(null);
-      }
+      setSelectedHitPoint(null);
     } else {
-      // 접힌 카드를 클릭하면 펼치고 선택
-      newExpanded.add(cardId);
+      // 접힌 카드를 클릭하면 다른 카드들은 모두 닫고 이 카드만 펼치기
+      setExpandedCards(new Set([cardId]));
       setSelectedHitPoint(hitPoint);
     }
+  };
 
-    setExpandedCards(newExpanded);
+  // 타점 삭제 핸들러
+  const handleDeleteHitPoint = async (
+    e: React.MouseEvent,
+    hitPointId: string
+  ) => {
+    // 이벤트 버블링 방지 (카드 클릭 이벤트가 발생하지 않도록)
+    e.stopPropagation();
+
+    if (!confirm("이 타점 데이터를 삭제하시겠습니까?")) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("hit_points")
+        .delete()
+        .eq("id", hitPointId);
+
+      if (error) {
+        console.error("삭제 오류:", error);
+        alert(`삭제 실패: ${error.message}`);
+      } else {
+        // 삭제 성공 시 선택 해제
+        if (selectedHitPoint?.id === hitPointId) {
+          setSelectedHitPoint(null);
+        }
+        // 펼침 상태에서도 제거
+        const newExpanded = new Set(expandedCards);
+        newExpanded.delete(hitPointId);
+        setExpandedCards(newExpanded);
+        // 목록 새로고침
+        fetchRecentHitPoints();
+      }
+    } catch (err) {
+      console.error("삭제 중 오류 발생:", err);
+      alert("삭제 중 오류가 발생했습니다. 콘솔을 확인해주세요.");
+    }
   };
 
   return (
@@ -488,6 +522,13 @@ export default function HomePage() {
                         <div className="flex-1 text-gray-700 dark:text-gray-300 truncate">
                           {hitPoint.intent}
                         </div>
+                        <button
+                          onClick={(e) => handleDeleteHitPoint(e, hitPoint.id!)}
+                          className="px-3 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-500 rounded transition-colors border border-red-600 dark:border-red-400"
+                          title="삭제"
+                        >
+                          삭제
+                        </button>
                       </div>
                     )}
                   </div>
