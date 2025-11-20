@@ -106,6 +106,75 @@ export default function HomePage() {
     setHitPointLocation(autoPosition);
   }, [tuningTarget, tonic, octave, fifth]);
 
+  // 좌표 자동 계산 (타원 외곽선 위의 점) - atan2 벡터 방식
+  useEffect(() => {
+    if (!tuningTarget) return;
+
+    // 조율오차 절대값
+    const eT = Math.abs(parseFloat(tonic) || 0);
+    const eO = Math.abs(parseFloat(octave) || 0);
+    const eF = Math.abs(parseFloat(fifth) || 0);
+
+    // 모든 오차가 0이면 계산하지 않음
+    if (eT === 0 && eO === 0 && eF === 0) return;
+
+    // 타원 파라미터 (TonefieldCanvas와 동일)
+    const radiusX = 0.6;  // 가로 반지름 (5도 방향)
+    const radiusY = 0.85; // 세로 반지름 (토닉/옥타브 방향)
+
+    // 1단계: 가중치 적용하여 힘(Force) 계산
+    const forceTonic = eT / 1.0;   // 가중치 1
+    const forceOctave = eO / 2.0;  // 가중치 2
+    const forceFifth = eF / 3.0;   // 가중치 3
+
+    // 2순위 찾기 (반구 결정용)
+    const scores = [
+      { type: 'tonic', score: eT * 6 },
+      { type: 'octave', score: eO * 3 },
+      { type: 'fifth', score: eF * 2 }
+    ].sort((a, b) => b.score - a.score);
+
+    const primary = scores[0];
+    const secondary = scores[1];
+
+    // 2단계: 상/하반구 결정 (수직 방향 힘 결정)
+    let vectorY: number;
+    let isUpperHemisphere = false;
+
+    if (primary.type === 'octave') {
+      isUpperHemisphere = true;
+      vectorY = forceOctave;  // 상반구: 옥타브 힘 (양수)
+    } else if (primary.type === 'tonic') {
+      isUpperHemisphere = false;
+      vectorY = -forceTonic;  // 하반구: 토닉 힘 (음수)
+    } else {
+      // 5도가 1순위면 2순위로 결정
+      if (secondary.type === 'octave') {
+        isUpperHemisphere = true;
+        vectorY = forceOctave;
+      } else {
+        isUpperHemisphere = false;
+        vectorY = -forceTonic;
+      }
+    }
+
+    // 3단계: 좌/우 결정 (수평 방향 힘 결정)
+    const isRight = Math.random() >= 0.5; // 50% 확률 (추후 개선 가능)
+    const vectorX = isRight ? forceFifth : -forceFifth;
+
+    // 4단계: 각도 계산 (atan2 사용 - 비율 문제 자동 해결!)
+    // 두 힘의 비율에 따라 정확한 각도가 자동으로 계산됨
+    const theta = Math.atan2(vectorY, vectorX);
+
+    // 5단계: 타원 좌표 매핑
+    // 타원의 각 반지름에 cos/sin을 곱하여 외곽선 위의 점 계산
+    const x = radiusX * Math.cos(theta);
+    const y = radiusY * Math.sin(theta);
+
+    // 좌표 설정
+    setHitPointCoord({ x, y });
+  }, [tuningTarget, tonic, octave, fifth]);
+
   // 카드 바깥 클릭 시 카드 접기
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -398,9 +467,16 @@ export default function HomePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  좌표 (톤필드 클릭)
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    좌표
+                  </label>
+                  {hitPointCoord && (
+                    <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                      ✨ 자동 계산됨
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={
@@ -409,7 +485,7 @@ export default function HomePage() {
                       : ""
                   }
                   readOnly
-                  placeholder="톤필드를 클릭하여 좌표를 선택하세요"
+                  placeholder="자동으로 계산됩니다"
                   className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white cursor-not-allowed"
                 />
               </div>
