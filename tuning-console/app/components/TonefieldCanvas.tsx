@@ -309,30 +309,55 @@ export default function TonefieldCanvas({
       // Draw hit point information in quadrants
       const textColor = isDark ? "#d1d5db" : "#374151"; // gray-300 : gray-700
       const labelColor = isDark ? "#9ca3af" : "#6b7280"; // gray-400 : gray-500
-      const highlightColor = "#dc2626"; // red-600
+      const primaryColor = "#dc2626"; // red-600 for 주 (primary)
+      const auxiliaryColor = "#ea580c"; // orange-600 for 보조 (auxiliary)
 
-      // 1st Quadrant (Top-Left): Tuning Errors (simplified - no labels, bottom to top order)
+      // 1st Quadrant (Top-Left): Tuning Errors (top to bottom: 5도, 옥타브, 토닉)
       ctx.font = "14px Arial";
       ctx.textAlign = "left";
 
       let yPos = PADDING + 20;
 
-      // Tonic (bottom position in visual order)
-      ctx.fillStyle = selectedHitPoint.tuning_target === "tonic" ? highlightColor : textColor;
-      ctx.font = selectedHitPoint.tuning_target === "tonic" ? "bold 14px Arial" : "14px Arial";
-      ctx.fillText(`${selectedHitPoint.tonic >= 0 ? '+' : ''}${selectedHitPoint.tonic}`, PADDING + 10, yPos);
+      // Fifth (top position)
+      const fifthColor = selectedHitPoint.primary_target === "fifth"
+        ? primaryColor
+        : selectedHitPoint.auxiliary_target === "fifth"
+        ? auxiliaryColor
+        : textColor;
+      const fifthFont = (selectedHitPoint.primary_target === "fifth" || selectedHitPoint.auxiliary_target === "fifth")
+        ? "bold 14px Arial"
+        : "14px Arial";
+      ctx.fillStyle = fifthColor;
+      ctx.font = fifthFont;
+      ctx.fillText(`${selectedHitPoint.fifth >= 0 ? '+' : ''}${Number(selectedHitPoint.fifth).toFixed(1)}`, PADDING + 10, yPos);
       yPos += 20;
 
-      // Octave
-      ctx.fillStyle = selectedHitPoint.tuning_target === "octave" ? highlightColor : textColor;
-      ctx.font = selectedHitPoint.tuning_target === "octave" ? "bold 14px Arial" : "14px Arial";
-      ctx.fillText(`${selectedHitPoint.octave >= 0 ? '+' : ''}${selectedHitPoint.octave}`, PADDING + 10, yPos);
+      // Octave (middle position)
+      const octaveColor = selectedHitPoint.primary_target === "octave"
+        ? primaryColor
+        : selectedHitPoint.auxiliary_target === "octave"
+        ? auxiliaryColor
+        : textColor;
+      const octaveFont = (selectedHitPoint.primary_target === "octave" || selectedHitPoint.auxiliary_target === "octave")
+        ? "bold 14px Arial"
+        : "14px Arial";
+      ctx.fillStyle = octaveColor;
+      ctx.font = octaveFont;
+      ctx.fillText(`${selectedHitPoint.octave >= 0 ? '+' : ''}${Number(selectedHitPoint.octave).toFixed(1)}`, PADDING + 10, yPos);
       yPos += 20;
 
-      // Fifth
-      ctx.fillStyle = selectedHitPoint.tuning_target === "fifth" ? highlightColor : textColor;
-      ctx.font = selectedHitPoint.tuning_target === "fifth" ? "bold 14px Arial" : "14px Arial";
-      ctx.fillText(`${selectedHitPoint.fifth >= 0 ? '+' : ''}${selectedHitPoint.fifth}`, PADDING + 10, yPos);
+      // Tonic (bottom position)
+      const tonicColor = selectedHitPoint.primary_target === "tonic"
+        ? primaryColor
+        : selectedHitPoint.auxiliary_target === "tonic"
+        ? auxiliaryColor
+        : textColor;
+      const tonicFont = (selectedHitPoint.primary_target === "tonic" || selectedHitPoint.auxiliary_target === "tonic")
+        ? "bold 14px Arial"
+        : "14px Arial";
+      ctx.fillStyle = tonicColor;
+      ctx.font = tonicFont;
+      ctx.fillText(`${selectedHitPoint.tonic >= 0 ? '+' : ''}${Number(selectedHitPoint.tonic).toFixed(1)}`, PADDING + 10, yPos);
       yPos += 20;
 
       // Tuning target and intent (4th line)
