@@ -96,28 +96,30 @@ def main():
         layout="wide"
     )
 
+    # Initialize session state for selected coordinates
+    if 'selected_coords' not in st.session_state:
+        st.session_state['selected_coords'] = []
+
     # Create interactive Plotly coordinate system
     fig = go.Figure()
 
-    # Add tonefield ellipse (using Scatter with fill for plotly_events compatibility)
+    # Tonefield parameters
     a = 0.60  # short axis (S direction)
     b = 0.85  # long axis (L direction)
 
-    # Generate ellipse points
-    theta = np.linspace(0, 2*np.pi, 200)
+    # Add tonefield ellipse (using Scatter with fill)
+    theta = np.linspace(0, 2*np.pi, 400)
     ellipse_x = a * np.cos(theta)
     ellipse_y = b * np.sin(theta)
 
-    # Add ellipse as filled scatter trace
     fig.add_trace(go.Scatter(
         x=ellipse_x,
         y=ellipse_y,
-        fill='toself',
-        fillcolor='rgba(173, 216, 230, 0.5)',
-        line=dict(color='black', width=3),
         mode='lines',
         name='Tonefield',
-        showlegend=True,
+        line=dict(color='gray'),
+        fill='toself',
+        fillcolor='rgba(173, 216, 230, 0.3)',
         hoverinfo='skip'
     ))
 
@@ -130,100 +132,133 @@ def main():
     )
 
     # Add coordinate axes
-    fig.add_shape(type="line", x0=-1, y0=0, x1=1, y1=0,
+    fig.add_shape(type="line", x0=-1.2, y0=0, x1=1.2, y1=0,
                   line=dict(color="black", width=2))
-    fig.add_shape(type="line", x0=0, y0=-1, x1=0, y1=1,
+    fig.add_shape(type="line", x0=0, y0=-1.2, x1=0, y1=1.2,
                   line=dict(color="black", width=2))
+
+    # Add invisible grid of clickable points (100x100 grid)
+    x_grid = np.linspace(-1, 1, 100)
+    y_grid = np.linspace(-1, 1, 100)
+    xx, yy = np.meshgrid(x_grid, y_grid)
+    x_flat = xx.flatten()
+    y_flat = yy.flatten()
+
+    fig.add_trace(go.Scatter(
+        x=x_flat,
+        y=y_flat,
+        mode='markers',
+        marker=dict(size=1, color='rgba(0,0,0,0)', opacity=0),  # Invisible
+        hoverinfo='skip',
+        showlegend=False,
+        name='Grid'
+    ))
 
     # Add origin marker
     fig.add_trace(go.Scatter(
         x=[0], y=[0],
         mode='markers',
-        marker=dict(size=12, color='red', symbol='circle'),
+        marker=dict(size=10, color='red'),
         name='Origin (0,0)',
-        hovertemplate='Origin: (0, 0)<extra></extra>'
+        hoverinfo='skip'
     ))
 
-    # Add selected coordinates if any
-    if 'selected_coords' in st.session_state and st.session_state['selected_coords']:
-        coords = st.session_state['selected_coords']
-        x_vals = [c[0] for c in coords]
-        y_vals = [c[1] for c in coords]
-
+    # Add previously selected coordinates
+    if st.session_state['selected_coords']:
+        xs = [p[0] for p in st.session_state['selected_coords']]
+        ys = [p[1] for p in st.session_state['selected_coords']]
         fig.add_trace(go.Scatter(
-            x=x_vals,
-            y=y_vals,
-            mode='markers+text',
-            marker=dict(size=10, color='green', symbol='x'),
-            text=[f"{i+1}" for i in range(len(coords))],
-            textposition="top center",
+            x=xs,
+            y=ys,
+            mode='markers',
+            marker=dict(color='green', size=8, symbol='x'),
             name='Selected Points',
-            hovertemplate='Point %{text}: (%{x:.3f}, %{y:.3f})<extra></extra>'
+            hoverinfo='skip'
         ))
 
-    # Update layout - disable zoom on drag, enable click selection
+    # Update layout - DISABLE all zoom/pan interactions
+    fig.update_xaxes(
+        range=[-1.2, 1.2],
+        zeroline=False,
+        title_text="X",
+        fixedrange=True  # Disable zoom/pan on X axis
+    )
+    fig.update_yaxes(
+        range=[-1.2, 1.2],
+        zeroline=False,
+        title_text="Y",
+        scaleanchor="x",
+        scaleratio=1,
+        fixedrange=True  # Disable zoom/pan on Y axis
+    )
     fig.update_layout(
-        title=dict(
-            text='Interactive Coordinate System: Click to Select Coordinates',
-            font=dict(size=18, family='Arial Black')
-        ),
-        xaxis=dict(
-            title='X',
-            range=[-1.1, 1.1],
-            scaleanchor="y",
-            scaleratio=1,
-            gridcolor='lightgray',
-            gridwidth=1,
-            zeroline=True,
-            zerolinecolor='black',
-            zerolinewidth=2
-        ),
-        yaxis=dict(
-            title='Y',
-            range=[-1.1, 1.1],
-            gridcolor='lightgray',
-            gridwidth=1,
-            zeroline=True,
-            zerolinecolor='black',
-            zerolinewidth=2
-        ),
         width=700,
         height=700,
-        hovermode='closest',
+        title="Click on the Tonefield to Select a Point",
         showlegend=True,
         plot_bgcolor='white',
-        dragmode=False  # Disable drag to zoom
+        margin=dict(l=40, r=40, t=60, b=40),
+        dragmode=False,  # Disable drag-to-zoom
+        hovermode=False  # Disable hover interactions
     )
 
-    # Display interactive plot with click events
+    # Display info message
     st.info("👆 Click anywhere on the plot to select coordinates")
 
-    selected_points = plotly_events(
+    # Render plot and capture click events with config
+    clicks = plotly_events(
         fig,
         click_event=True,
         hover_event=False,
         select_event=False,
+        key="tonefield_plot",
         override_height=700,
         override_width=700
     )
 
+    # DEBUG: Show raw click data with multiple formats
+    st.write("**DEBUG - Raw click data (length):**", len(clicks))
+    st.write("**DEBUG - Raw click data (str):**", str(clicks))
+    st.json(clicks)  # JSON format shows structure better
+
     # Handle click event
-    if selected_points:
-        clicked_x = selected_points[0]['x']
-        clicked_y = selected_points[0]['y']
+    if clicks and len(clicks) > 0:
+        st.write("**DEBUG - clicks[0] type:**", type(clicks[0]))
+        st.write("**DEBUG - clicks[0] keys:**", list(clicks[0].keys()) if isinstance(clicks[0], dict) else "Not a dict")
+        st.write("**DEBUG - clicks[0] full:**", str(clicks[0]))
 
-        # Display clicked coordinate
-        st.success(f"🎯 Clicked: ({clicked_x:.3f}, {clicked_y:.3f})")
+        # Try to extract coordinates
+        try:
+            if isinstance(clicks[0], dict):
+                st.write("**DEBUG - All click data:**")
+                for key, value in clicks[0].items():
+                    st.write(f"  - {key}: {value}")
 
-        # Auto-add to selected coordinates
-        if 'selected_coords' not in st.session_state:
-            st.session_state['selected_coords'] = []
+                if 'x' in clicks[0] and 'y' in clicks[0]:
+                    x_c = float(clicks[0]["x"])
+                    y_c = float(clicks[0]["y"])
+                    st.write(f"**DEBUG - Extracted coordinates:** x={x_c}, y={y_c}")
 
-        # Add only if not duplicate
-        new_coord = (round(clicked_x, 3), round(clicked_y, 3))
-        if new_coord not in st.session_state['selected_coords']:
-            st.session_state['selected_coords'].append(new_coord)
-            st.rerun()
+                    # Add to selected coordinates
+                    new_coord = (round(x_c, 3), round(y_c, 3))
+                    if new_coord not in st.session_state['selected_coords']:
+                        st.session_state['selected_coords'].append(new_coord)
+                        st.success(f"✅ Added: ({new_coord[0]}, {new_coord[1]})")
+                        st.rerun()
+                else:
+                    st.warning(f"⚠️ Click data missing 'x' or 'y' keys. Available keys: {list(clicks[0].keys())}")
+            else:
+                st.error(f"❌ clicks[0] is not a dict, it's a {type(clicks[0])}")
+        except Exception as e:
+            st.error(f"❌ Error processing click: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
+
+    # Display selected coordinates
+    if st.session_state['selected_coords']:
+        st.markdown("### 📋 Selected Coordinates")
+        for i, (x, y) in enumerate(st.session_state['selected_coords'], 1):
+            st.write(f"{i}. ({x:.3f}, {y:.3f})")
 
     # Manual coordinate input (optional)
     st.markdown("---")

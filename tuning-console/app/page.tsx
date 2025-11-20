@@ -25,6 +25,10 @@ export default function HomePage() {
   const [hitPointHitCount, setHitPointHitCount] = useState<string>("");
   const [hitPointLocation, setHitPointLocation] = useState<"external" | "internal" | null>("internal");
   const [hitPointIntent, setHitPointIntent] = useState<string>("");
+  const [hitPointPrimaryTarget, setHitPointPrimaryTarget] = useState<"tonic" | "octave" | "fifth" | null>(null);
+  const [hitPointAuxiliaryTarget, setHitPointAuxiliaryTarget] = useState<"tonic" | "octave" | "fifth" | null>(null);
+  const [hitPointIsCompound, setHitPointIsCompound] = useState<boolean>(false);
+  const [hitPointTargetDisplay, setHitPointTargetDisplay] = useState<string>("");
   const [recentHitPoints, setRecentHitPoints] = useState<HitPointData[]>([]);
   const [selectedHitPoint, setSelectedHitPoint] = useState<HitPointData | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
@@ -94,14 +98,14 @@ export default function HomePage() {
     }
 
     // 의도 자동 제안
-    // 양수: 너무 높음 → 낮춰야 함 (Down)
-    // 음수: 너무 낮음 → 올려야 함 (Up)
-    const suggestedIntent = targetValue > 0 ? "Down (플랫)" : targetValue < 0 ? "Up (샵)" : "";
+    // 양수: 너무 높음 → 낮춰야 함 (하향)
+    // 음수: 너무 낮음 → 올려야 함 (상향)
+    const suggestedIntent = targetValue > 0 ? "하향" : targetValue < 0 ? "상향" : "";
     setHitPointIntent(suggestedIntent);
 
     // 위치 자동 선택
-    // Down → 외부 타격
-    // Up → 내부 타격
+    // 하향 → 외부 타격
+    // 상향 → 내부 타격
     const autoPosition = targetValue > 0 ? "external" : targetValue < 0 ? "internal" : null;
     setHitPointLocation(autoPosition);
   }, [tuningTarget, tonic, octave, fifth]);
@@ -214,7 +218,41 @@ export default function HomePage() {
     const x = radiusX * Math.cos(theta);
     const y = radiusY * Math.sin(theta);
 
-    // 좌표 설정
+    // 6단계: Primary & Auxiliary 타겟 결정
+    const primaryTarget = primary.type as 'tonic' | 'octave' | 'fifth';
+
+    // Auxiliary 결정: 벡터 계산에 실제로 힘을 보탰는가?
+    let auxiliaryTarget: 'tonic' | 'octave' | 'fifth' | null = null;
+
+    // X축(5도) 힘이 들어갔고 & 5도가 Primary가 아니라면 → 5도가 보조
+    if (Math.abs(vectorX) > 0 && primaryTarget !== 'fifth') {
+      auxiliaryTarget = 'fifth';
+    }
+    // Y축(토닉/옥타브) 힘이 들어갔고 & 5도가 Primary라면 → 토닉/옥타브가 보조
+    else if (Math.abs(vectorY) > 0 && primaryTarget === 'fifth') {
+      // vectorY가 양수면 옥타브, 음수면 토닉
+      auxiliaryTarget = vectorY > 0 ? 'octave' : 'tonic';
+    }
+
+    // 복합 타점 여부
+    const isCompound = auxiliaryTarget !== null;
+
+    // UI 표시용 텍스트 생성
+    const nameMap: Record<string, string> = {
+      'tonic': '토닉',
+      'octave': '옥타브',
+      'fifth': '5도'
+    };
+    const pText = nameMap[primaryTarget];
+    const aText = auxiliaryTarget ? nameMap[auxiliaryTarget] : null;
+
+    const targetDisplay = aText ? `${pText} (+${aText})` : pText;
+
+    // 상태 설정
+    setHitPointPrimaryTarget(primaryTarget);
+    setHitPointAuxiliaryTarget(auxiliaryTarget);
+    setHitPointIsCompound(isCompound);
+    setHitPointTargetDisplay(targetDisplay);
     setHitPointCoord({ x, y });
   }, [tuningTarget, tonic, octave, fifth]);
 
@@ -276,7 +314,7 @@ export default function HomePage() {
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error} = await supabase
         .from("hit_points")
         .insert([
           {
@@ -284,6 +322,10 @@ export default function HomePage() {
             octave: parseFloat(octave),
             fifth: parseFloat(fifth),
             tuning_target: tuningTarget,
+            primary_target: hitPointPrimaryTarget,
+            auxiliary_target: hitPointAuxiliaryTarget,
+            is_compound: hitPointIsCompound,
+            target_display: hitPointTargetDisplay,
             coordinate_x: hitPointCoord.x,
             coordinate_y: hitPointCoord.y,
             strength: parseFloat(hitPointStrength),
@@ -306,6 +348,10 @@ export default function HomePage() {
         setHitPointHitCount("");
         setHitPointLocation("internal");
         setHitPointIntent("");
+        setHitPointPrimaryTarget(null);
+        setHitPointAuxiliaryTarget(null);
+        setHitPointIsCompound(false);
+        setHitPointTargetDisplay("");
         // 최근 데이터 새로고침
         fetchRecentHitPoints();
       }
@@ -498,7 +544,7 @@ export default function HomePage() {
                   : cooperativeField === "fifth"
                   ? "text-red-500/70 dark:text-red-400/70"
                   : excludedFields.includes("fifth")
-                  ? "text-gray-400 dark:text-gray-600"
+                  ? "text-gray-500 dark:text-gray-500"
                   : "text-gray-700 dark:text-gray-300"
               }`}>
                 5도 (Hz)
@@ -508,13 +554,14 @@ export default function HomePage() {
                 inputMode="decimal"
                 value={fifth}
                 onChange={(e) => setFifth(e.target.value)}
+                disabled={excludedFields.includes("fifth")}
                 className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${
                   tuningTarget === "fifth"
                     ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
                     : cooperativeField === "fifth"
                     ? "border-red-500/50 dark:border-red-400/50 bg-red-50/50 dark:bg-red-900/10 text-red-900/70 dark:text-red-100/70 focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
                     : excludedFields.includes("fifth")
-                    ? "border-gray-300/50 dark:border-gray-700/50 bg-gray-100/50 dark:bg-gray-800/30 text-gray-400 dark:text-gray-600 opacity-50"
+                    ? "border-gray-300/60 dark:border-gray-700/60 bg-gray-100/50 dark:bg-gray-800/30 text-gray-500 dark:text-gray-500 opacity-70 cursor-not-allowed"
                     : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                 }`}
               />
@@ -527,7 +574,7 @@ export default function HomePage() {
                   : cooperativeField === "octave"
                   ? "text-red-500/70 dark:text-red-400/70"
                   : excludedFields.includes("octave")
-                  ? "text-gray-400 dark:text-gray-600"
+                  ? "text-gray-500 dark:text-gray-500"
                   : "text-gray-700 dark:text-gray-300"
               }`}>
                 옥타브 (Hz)
@@ -537,13 +584,14 @@ export default function HomePage() {
                 inputMode="decimal"
                 value={octave}
                 onChange={(e) => setOctave(e.target.value)}
+                disabled={excludedFields.includes("octave")}
                 className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${
                   tuningTarget === "octave"
                     ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
                     : cooperativeField === "octave"
                     ? "border-red-500/50 dark:border-red-400/50 bg-red-50/50 dark:bg-red-900/10 text-red-900/70 dark:text-red-100/70 focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
                     : excludedFields.includes("octave")
-                    ? "border-gray-300/50 dark:border-gray-700/50 bg-gray-100/50 dark:bg-gray-800/30 text-gray-400 dark:text-gray-600 opacity-50"
+                    ? "border-gray-300/60 dark:border-gray-700/60 bg-gray-100/50 dark:bg-gray-800/30 text-gray-500 dark:text-gray-500 opacity-70 cursor-not-allowed"
                     : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                 }`}
               />
@@ -556,7 +604,7 @@ export default function HomePage() {
                   : cooperativeField === "tonic"
                   ? "text-red-500/70 dark:text-red-400/70"
                   : excludedFields.includes("tonic")
-                  ? "text-gray-400 dark:text-gray-600"
+                  ? "text-gray-500 dark:text-gray-500"
                   : "text-gray-700 dark:text-gray-300"
               }`}>
                 토닉 (Hz)
@@ -566,13 +614,14 @@ export default function HomePage() {
                 inputMode="decimal"
                 value={tonic}
                 onChange={(e) => setTonic(e.target.value)}
+                disabled={excludedFields.includes("tonic")}
                 className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${
                   tuningTarget === "tonic"
                     ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
                     : cooperativeField === "tonic"
                     ? "border-red-500/50 dark:border-red-400/50 bg-red-50/50 dark:bg-red-900/10 text-red-900/70 dark:text-red-100/70 focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
                     : excludedFields.includes("tonic")
-                    ? "border-gray-300/50 dark:border-gray-700/50 bg-gray-100/50 dark:bg-gray-800/30 text-gray-400 dark:text-gray-600 opacity-50"
+                    ? "border-gray-300/60 dark:border-gray-700/60 bg-gray-100/50 dark:bg-gray-800/30 text-gray-500 dark:text-gray-500 opacity-70 cursor-not-allowed"
                     : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                 }`}
               />
@@ -688,15 +737,7 @@ export default function HomePage() {
                   </label>
                   <input
                     type="text"
-                    value={
-                      tuningTarget === "tonic"
-                        ? "토닉"
-                        : tuningTarget === "octave"
-                        ? "옥타브"
-                        : tuningTarget === "fifth"
-                        ? "5도"
-                        : ""
-                    }
+                    value={hitPointTargetDisplay}
                     readOnly
                     placeholder="조율대상"
                     className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold cursor-not-allowed"
@@ -911,36 +952,45 @@ export default function HomePage() {
                           {/* 오른쪽 열: 5도, 옥타브, 토닉 (조율대상 표시) */}
                           <div className="space-y-2">
                             <div>
-                              <div className={hitPoint.tuning_target === "fifth"
+                              <div className={
+                                hitPoint.primary_target === "fifth" || hitPoint.auxiliary_target === "fifth"
                                 ? "text-red-600 dark:text-red-400 font-bold"
                                 : "text-gray-500 dark:text-gray-400"}>
-                                5도
+                                5도 {hitPoint.primary_target === "fifth" && hitPoint.auxiliary_target && "(주)"}
+                                {hitPoint.auxiliary_target === "fifth" && "(보조)"}
                               </div>
-                              <div className={hitPoint.tuning_target === "fifth"
+                              <div className={
+                                hitPoint.primary_target === "fifth" || hitPoint.auxiliary_target === "fifth"
                                 ? "text-red-600 dark:text-red-400 font-bold"
                                 : "text-gray-700 dark:text-gray-300"}>
                                 {hitPoint.fifth}Hz
                               </div>
                             </div>
                             <div>
-                              <div className={hitPoint.tuning_target === "octave"
+                              <div className={
+                                hitPoint.primary_target === "octave" || hitPoint.auxiliary_target === "octave"
                                 ? "text-red-600 dark:text-red-400 font-bold"
                                 : "text-gray-500 dark:text-gray-400"}>
-                                옥타브
+                                옥타브 {hitPoint.primary_target === "octave" && hitPoint.auxiliary_target && "(주)"}
+                                {hitPoint.auxiliary_target === "octave" && "(보조)"}
                               </div>
-                              <div className={hitPoint.tuning_target === "octave"
+                              <div className={
+                                hitPoint.primary_target === "octave" || hitPoint.auxiliary_target === "octave"
                                 ? "text-red-600 dark:text-red-400 font-bold"
                                 : "text-gray-700 dark:text-gray-300"}>
                                 {hitPoint.octave}Hz
                               </div>
                             </div>
                             <div>
-                              <div className={hitPoint.tuning_target === "tonic"
+                              <div className={
+                                hitPoint.primary_target === "tonic" || hitPoint.auxiliary_target === "tonic"
                                 ? "text-red-600 dark:text-red-400 font-bold"
                                 : "text-gray-500 dark:text-gray-400"}>
-                                토닉
+                                토닉 {hitPoint.primary_target === "tonic" && hitPoint.auxiliary_target && "(주)"}
+                                {hitPoint.auxiliary_target === "tonic" && "(보조)"}
                               </div>
-                              <div className={hitPoint.tuning_target === "tonic"
+                              <div className={
+                                hitPoint.primary_target === "tonic" || hitPoint.auxiliary_target === "tonic"
                                 ? "text-red-600 dark:text-red-400 font-bold"
                                 : "text-gray-700 dark:text-gray-300"}>
                                 {hitPoint.tonic}Hz
@@ -950,27 +1000,25 @@ export default function HomePage() {
                         </div>
                       </>
                     ) : (
-                      // 접힌 상태: 조율대상, 의도, 위치, 강도×타수 표시
+                      // 접힌 상태: 조율대상, 의도, 위치, 강도×타수 표시 (일반 텍스트)
                       <div className="flex items-center gap-3 text-base">
                         {/* 조율대상 */}
-                        <div className="px-2 py-1 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 font-medium">
-                          {hitPoint.tuning_target === "tonic" ? "토닉"
-                           : hitPoint.tuning_target === "octave" ? "옥타브"
-                           : "5도"}
+                        <div className="text-gray-900 dark:text-white font-semibold">
+                          {hitPoint.target_display}
                         </div>
 
                         {/* 의도 */}
-                        <div className="text-gray-700 dark:text-gray-300 truncate max-w-[200px]">
+                        <div className="text-gray-700 dark:text-gray-300">
                           {hitPoint.intent}
                         </div>
 
                         {/* 외부/내부 */}
-                        <div className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium">
+                        <div className="text-gray-700 dark:text-gray-300">
                           {hitPoint.location === "external" ? "외부" : "내부"}
                         </div>
 
                         {/* 강도×타수 */}
-                        <div className="font-semibold text-gray-900 dark:text-white">
+                        <div className="text-gray-700 dark:text-gray-300">
                           {hitPoint.strength >= 0 ? '+' : ''}{hitPoint.strength} × {hitPoint.hit_count}
                         </div>
 

@@ -8,6 +8,10 @@ interface HitPointData {
   octave: number;
   fifth: number;
   tuning_target: 'tonic' | 'octave' | 'fifth';
+  primary_target?: 'tonic' | 'octave' | 'fifth';
+  auxiliary_target?: 'tonic' | 'octave' | 'fifth' | null;
+  is_compound?: boolean;
+  target_display?: string;
   coordinate_x: number;
   coordinate_y: number;
   strength: number;
@@ -128,13 +132,13 @@ export default function TonefieldCanvas({
       ? selectedHitPoint.location
       : hitPointLocation;
 
-    // Location-based colors: internal = blue, external = orange
+    // Location-based colors: internal = blue, external = red
     const tonefieldFill = currentLocation === "external"
-      ? "rgba(249, 115, 22, 0.2)"  // orange with low opacity
+      ? "rgba(220, 38, 38, 0.2)"  // red-600 with low opacity
       : "rgba(37, 99, 235, 0.2)";   // blue with low opacity
 
     const tonefieldStroke = currentLocation === "external"
-      ? "#f97316"  // orange-500
+      ? "#dc2626"  // red-600
       : "#2563eb"; // blue-600
 
     ctx.beginPath();
@@ -159,7 +163,7 @@ export default function TonefieldCanvas({
     const dimpleB = b * dimpleScale;
 
     const dimpleFill = currentLocation === "external"
-      ? "rgba(249, 115, 22, 0.35)"  // orange with higher opacity
+      ? "rgba(220, 38, 38, 0.35)"  // red-600 with higher opacity
       : "rgba(37, 99, 235, 0.35)";   // blue with higher opacity
 
     ctx.beginPath();
@@ -246,9 +250,9 @@ export default function TonefieldCanvas({
       const canvasX = coordToCanvas(hitPointCoord.x, "x");
       const canvasY = coordToCanvas(hitPointCoord.y, "y");
 
-      // Location-based colors: internal = blue, external = orange
-      const markerColor = hitPointLocation === "external" ? "#f97316" : "#2563eb"; // orange-500 : blue-600
-      const markerOutlineColor = hitPointLocation === "external" ? "#ea580c" : "#1d4ed8"; // orange-600 : blue-700
+      // Location-based colors: internal = blue, external = red
+      const markerColor = hitPointLocation === "external" ? "#dc2626" : "#2563eb"; // red-600 : blue-600
+      const markerOutlineColor = hitPointLocation === "external" ? "#b91c1c" : "#1d4ed8"; // red-700 : blue-700
 
       // Draw circle with outline
       ctx.fillStyle = markerColor;
@@ -280,7 +284,7 @@ export default function TonefieldCanvas({
       const strengthColor = getStrengthColor(selectedHitPoint.strength);
 
       // Location-based colors for outer ring
-      const locationColor = selectedHitPoint.location === "external" ? "#f97316" : "#2563eb"; // orange-500 : blue-600
+      const locationColor = selectedHitPoint.location === "external" ? "#dc2626" : "#2563eb"; // red-600 : blue-600
 
       // Draw animated outer ring with location-based color
       ctx.strokeStyle = `${locationColor}${Math.floor(pulseOpacity * 255).toString(16).padStart(2, '0')}`;
@@ -307,69 +311,52 @@ export default function TonefieldCanvas({
       const labelColor = isDark ? "#9ca3af" : "#6b7280"; // gray-400 : gray-500
       const highlightColor = "#dc2626"; // red-600
 
-      // 1st Quadrant (Top-Left): Tuning Errors
-      ctx.font = "12px Arial";
+      // 1st Quadrant (Top-Left): Tuning Errors (simplified - no labels, bottom to top order)
+      ctx.font = "14px Arial";
       ctx.textAlign = "left";
 
       let yPos = PADDING + 20;
-      ctx.fillStyle = labelColor;
-      ctx.fillText("조율오차 (Hz)", PADDING + 10, yPos);
-      yPos += 18;
 
-      // Fifth
-      ctx.fillStyle = selectedHitPoint.tuning_target === "fifth" ? highlightColor : textColor;
-      ctx.font = selectedHitPoint.tuning_target === "fifth" ? "bold 14px Arial" : "14px Arial";
-      ctx.fillText(`5도: ${selectedHitPoint.fifth >= 0 ? '+' : ''}${selectedHitPoint.fifth}`, PADDING + 10, yPos);
+      // Tonic (bottom position in visual order)
+      ctx.fillStyle = selectedHitPoint.tuning_target === "tonic" ? highlightColor : textColor;
+      ctx.font = selectedHitPoint.tuning_target === "tonic" ? "bold 14px Arial" : "14px Arial";
+      ctx.fillText(`${selectedHitPoint.tonic >= 0 ? '+' : ''}${selectedHitPoint.tonic}`, PADDING + 10, yPos);
       yPos += 20;
 
       // Octave
       ctx.fillStyle = selectedHitPoint.tuning_target === "octave" ? highlightColor : textColor;
       ctx.font = selectedHitPoint.tuning_target === "octave" ? "bold 14px Arial" : "14px Arial";
-      ctx.fillText(`옥타브: ${selectedHitPoint.octave >= 0 ? '+' : ''}${selectedHitPoint.octave}`, PADDING + 10, yPos);
+      ctx.fillText(`${selectedHitPoint.octave >= 0 ? '+' : ''}${selectedHitPoint.octave}`, PADDING + 10, yPos);
       yPos += 20;
 
-      // Tonic
-      ctx.fillStyle = selectedHitPoint.tuning_target === "tonic" ? highlightColor : textColor;
-      ctx.font = selectedHitPoint.tuning_target === "tonic" ? "bold 14px Arial" : "14px Arial";
-      ctx.fillText(`토닉: ${selectedHitPoint.tonic >= 0 ? '+' : ''}${selectedHitPoint.tonic}`, PADDING + 10, yPos);
+      // Fifth
+      ctx.fillStyle = selectedHitPoint.tuning_target === "fifth" ? highlightColor : textColor;
+      ctx.font = selectedHitPoint.tuning_target === "fifth" ? "bold 14px Arial" : "14px Arial";
+      ctx.fillText(`${selectedHitPoint.fifth >= 0 ? '+' : ''}${selectedHitPoint.fifth}`, PADDING + 10, yPos);
+      yPos += 20;
 
-      // 2nd Quadrant (Top-Right): Location, Coordinates, Strength, Hit Count
-      ctx.font = "12px Arial";
+      // Tuning target and intent (4th line)
+      // Use target_display if available (for compound targets), otherwise fall back to tuning_target
+      const targetText = selectedHitPoint.target_display
+                       || (selectedHitPoint.tuning_target === "tonic" ? "토닉"
+                         : selectedHitPoint.tuning_target === "octave" ? "옥타브"
+                         : "5도");
+      ctx.fillStyle = textColor;
+      ctx.font = "13px Arial";
+      ctx.fillText(`${targetText} ${selectedHitPoint.intent}`, PADDING + 10, yPos);
+
+      // 2nd Quadrant (Top-Right): Location, Coordinates, Strength, Hit Count (simplified - no labels)
+      ctx.font = "13px Arial";
       ctx.textAlign = "right";
+      ctx.fillStyle = textColor;
 
       yPos = PADDING + 20;
-      ctx.fillStyle = labelColor;
-      ctx.fillText("타점 정보", CANVAS_SIZE - PADDING - 10, yPos);
+      ctx.fillText(`${selectedHitPoint.location === "internal" ? "내부" : "외부"}`, CANVAS_SIZE - PADDING - 10, yPos);
       yPos += 18;
-
-      ctx.fillStyle = textColor;
-      ctx.font = "13px Arial";
-      ctx.fillText(`위치: ${selectedHitPoint.location === "internal" ? "내부" : "외부"}`, CANVAS_SIZE - PADDING - 10, yPos);
+      ctx.fillText(`(${selectedHitPoint.coordinate_x.toFixed(2)}, ${selectedHitPoint.coordinate_y.toFixed(2)})`, CANVAS_SIZE - PADDING - 10, yPos);
       yPos += 18;
-      ctx.fillText(`좌표: (${selectedHitPoint.coordinate_x.toFixed(2)}, ${selectedHitPoint.coordinate_y.toFixed(2)})`, CANVAS_SIZE - PADDING - 10, yPos);
-      yPos += 18;
-      ctx.fillText(`강도×타수: ${selectedHitPoint.strength >= 0 ? '+' : ''}${selectedHitPoint.strength} × ${selectedHitPoint.hit_count}`, CANVAS_SIZE - PADDING - 10, yPos);
+      ctx.fillText(`${selectedHitPoint.strength >= 0 ? '+' : ''}${selectedHitPoint.strength} × ${selectedHitPoint.hit_count}`, CANVAS_SIZE - PADDING - 10, yPos);
 
-      // 4th Quadrant (Bottom-Right): Tuning Target and Intent
-      ctx.font = "12px Arial";
-      ctx.textAlign = "right";
-
-      yPos = CANVAS_SIZE - PADDING - 35;
-      ctx.fillStyle = labelColor;
-      ctx.fillText("조율 정보", CANVAS_SIZE - PADDING - 10, yPos);
-      yPos += 18;
-
-      ctx.fillStyle = highlightColor;
-      ctx.font = "bold 13px Arial";
-      const targetText = selectedHitPoint.tuning_target === "tonic" ? "토닉"
-                       : selectedHitPoint.tuning_target === "octave" ? "옥타브"
-                       : "5도";
-      ctx.fillText(`조율대상: ${targetText}`, CANVAS_SIZE - PADDING - 10, yPos);
-      yPos += 18;
-
-      ctx.fillStyle = textColor;
-      ctx.font = "13px Arial";
-      ctx.fillText(`의도: ${selectedHitPoint.intent}`, CANVAS_SIZE - PADDING - 10, yPos);
     }
   };
 

@@ -18,6 +18,10 @@ export interface HitPointData {
   octave: number;
   fifth: number;
   tuning_target: 'tonic' | 'octave' | 'fifth';
+  primary_target: 'tonic' | 'octave' | 'fifth';  // 주 타겟 (가중치 1등)
+  auxiliary_target: 'tonic' | 'octave' | 'fifth' | null;  // 보조 타겟 (벡터 협력자)
+  is_compound: boolean;  // 복합 타점 여부
+  target_display: string;  // UI 표시용 (예: "토닉 (+5도)")
   coordinate_x: number;
   coordinate_y: number;
   strength: number;
