@@ -106,14 +106,19 @@ export default function HomePage() {
     setHitPointLocation(autoPosition);
   }, [tuningTarget, tonic, octave, fifth]);
 
-  // 좌표 자동 계산 (타원 외곽선 위의 점) - atan2 벡터 방식
+  // 좌표 자동 계산 (타원 외곽선 위의 점) - atan2 벡터 방식 + 축 고립
   useEffect(() => {
     if (!tuningTarget) return;
 
+    // 조율오차 원본값 (부호 포함)
+    const tonicVal = parseFloat(tonic) || 0;
+    const octaveVal = parseFloat(octave) || 0;
+    const fifthVal = parseFloat(fifth) || 0;
+
     // 조율오차 절대값
-    const eT = Math.abs(parseFloat(tonic) || 0);
-    const eO = Math.abs(parseFloat(octave) || 0);
-    const eF = Math.abs(parseFloat(fifth) || 0);
+    const eT = Math.abs(tonicVal);
+    const eO = Math.abs(octaveVal);
+    const eF = Math.abs(fifthVal);
 
     // 모든 오차가 0이면 계산하지 않음
     if (eT === 0 && eO === 0 && eF === 0) return;
@@ -129,9 +134,9 @@ export default function HomePage() {
 
     // 2순위 찾기 (반구 결정용)
     const scores = [
-      { type: 'tonic', score: eT * 6 },
-      { type: 'octave', score: eO * 3 },
-      { type: 'fifth', score: eF * 2 }
+      { type: 'tonic', score: eT * 6, value: tonicVal },
+      { type: 'octave', score: eO * 3, value: octaveVal },
+      { type: 'fifth', score: eF * 2, value: fifthVal }
     ].sort((a, b) => b.score - a.score);
 
     const primary = scores[0];
@@ -158,9 +163,28 @@ export default function HomePage() {
       }
     }
 
-    // 3단계: 좌/우 결정 (수평 방향 힘 결정)
-    const isRight = Math.random() >= 0.5; // 50% 확률 (추후 개선 가능)
-    const vectorX = isRight ? forceFifth : -forceFifth;
+    // 3단계: 좌/우 결정 (수평 방향 힘 결정) - 축 고립 로직 적용
+    let vectorX: number;
+
+    // 조율 대상이 토닉/옥타브(수직축)인 경우에만 부호 검사
+    if (primary.type === 'tonic' || primary.type === 'octave') {
+      const targetValue = primary.value;
+      const isSignSame = Math.sign(targetValue) === Math.sign(fifthVal);
+
+      if (isSignSame || fifthVal === 0) {
+        // [협력 관계] 부호가 같음 → 5도 벡터 포함하여 대각선 타격 (일타이피 효과)
+        const isRight = Math.random() >= 0.5;
+        vectorX = isRight ? forceFifth : -forceFifth;
+      } else {
+        // [상충 관계] 부호가 반대 → 5도 벡터 제외 (축 고립)
+        // 순수 수직축(12시/6시) 타격으로 주 대상만 조율, 5도 영향 최소화
+        vectorX = 0;
+      }
+    } else {
+      // 5도가 주 조율 대상인 경우 → 기존 로직 (좌/우 랜덤)
+      const isRight = Math.random() >= 0.5;
+      vectorX = isRight ? forceFifth : -forceFifth;
+    }
 
     // 4단계: 각도 계산 (atan2 사용 - 비율 문제 자동 해결!)
     // 두 힘의 비율에 따라 정확한 각도가 자동으로 계산됨
