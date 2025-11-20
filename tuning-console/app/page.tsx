@@ -26,10 +26,12 @@ export default function HomePage() {
   const [recentHitPoints, setRecentHitPoints] = useState<HitPointData[]>([]);
   const [selectedHitPoint, setSelectedHitPoint] = useState<HitPointData | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [isLoadingHitPoints, setIsLoadingHitPoints] = useState<boolean>(true);
 
   // 최근 타점 데이터 불러오기
   const fetchRecentHitPoints = async () => {
     try {
+      setIsLoadingHitPoints(true);
       const { data, error } = await supabase
         .from("hit_points")
         .select("*")
@@ -43,6 +45,8 @@ export default function HomePage() {
       }
     } catch (err) {
       console.error("데이터 불러오기 중 오류:", err);
+    } finally {
+      setIsLoadingHitPoints(false);
     }
   };
 
@@ -433,7 +437,26 @@ export default function HomePage() {
           </p>
 
           <div className="space-y-3 max-h-[800px] overflow-y-auto">
-            {recentHitPoints.length === 0 ? (
+            {isLoadingHitPoints ? (
+              // 로딩 스켈레톤: 접힌 카드와 동일한 구조
+              Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="p-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 animate-pulse"
+                >
+                  <div className="flex items-center gap-3">
+                    {/* 강도 숫자 스켈레톤 */}
+                    <div className="h-6 w-12 bg-gray-200 dark:bg-gray-600 rounded"></div>
+                    {/* I/E 배지 스켈레톤 */}
+                    <div className="h-8 w-8 bg-gray-200 dark:bg-gray-600 rounded"></div>
+                    {/* 의도 텍스트 스켈레톤 */}
+                    <div className="flex-1 h-6 bg-gray-200 dark:bg-gray-600 rounded"></div>
+                    {/* 삭제 버튼 스켈레톤 */}
+                    <div className="h-8 w-16 bg-gray-200 dark:bg-gray-600 rounded"></div>
+                  </div>
+                </div>
+              ))
+            ) : recentHitPoints.length === 0 ? (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 저장된 타점 데이터가 없습니다
               </div>
