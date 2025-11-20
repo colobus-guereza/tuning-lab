@@ -15,6 +15,7 @@ interface TonefieldCanvasProps {
   selectedCoords: Array<{ x: number; y: number }>;
   onCoordClick: (x: number, y: number) => void;
   hitPointCoord?: { x: number; y: number } | null;
+  hitPointLocation?: "internal" | "external" | null;
   selectedHitPoint?: HitPointData | null;
 }
 
@@ -22,6 +23,7 @@ export default function TonefieldCanvas({
   selectedCoords,
   onCoordClick,
   hitPointCoord,
+  hitPointLocation,
   selectedHitPoint,
 }: TonefieldCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -112,9 +114,23 @@ export default function TonefieldCanvas({
     ctx.lineTo(coordToCanvas(0, "x"), PADDING + FIELD_SIZE);
     ctx.stroke();
 
-    // Draw ellipse (tonefield)
+    // Draw ellipse (tonefield) with location-based color
     const a = 0.6; // short axis
     const b = 0.85; // long axis
+
+    // Determine current location: prioritize selectedHitPoint, fallback to hitPointLocation
+    const currentLocation = selectedHitPoint
+      ? selectedHitPoint.location
+      : hitPointLocation;
+
+    // Location-based colors: internal = blue, external = orange
+    const tonefieldFill = currentLocation === "external"
+      ? "rgba(249, 115, 22, 0.2)"  // orange with low opacity
+      : "rgba(37, 99, 235, 0.2)";   // blue with low opacity
+
+    const tonefieldStroke = currentLocation === "external"
+      ? "#f97316"  // orange-500
+      : "#2563eb"; // blue-600
 
     ctx.beginPath();
     ctx.ellipse(
@@ -126,9 +142,9 @@ export default function TonefieldCanvas({
       0,
       2 * Math.PI
     );
-    ctx.fillStyle = "rgba(173, 216, 230, 0.3)";
+    ctx.fillStyle = tonefieldFill;
     ctx.fill();
-    ctx.strokeStyle = "gray";
+    ctx.strokeStyle = tonefieldStroke;
     ctx.lineWidth = 2;
     ctx.stroke();
 
@@ -136,6 +152,10 @@ export default function TonefieldCanvas({
     const dimpleScale = 0.4; // 40% of main ellipse
     const dimpleA = a * dimpleScale;
     const dimpleB = b * dimpleScale;
+
+    const dimpleFill = currentLocation === "external"
+      ? "rgba(249, 115, 22, 0.35)"  // orange with higher opacity
+      : "rgba(37, 99, 235, 0.35)";   // blue with higher opacity
 
     ctx.beginPath();
     ctx.ellipse(
@@ -147,7 +167,7 @@ export default function TonefieldCanvas({
       0,
       2 * Math.PI
     );
-    ctx.fillStyle = "rgba(173, 216, 230, 0.5)"; // Slightly darker fill
+    ctx.fillStyle = dimpleFill;
     ctx.fill();
     ctx.strokeStyle = isDark ? "#6b7280" : "#9ca3af"; // gray-500 : gray-400
     ctx.lineWidth = 1.5;
@@ -216,16 +236,25 @@ export default function TonefieldCanvas({
       ctx.fillText(String(index + 1), canvasX, canvasY - 12);
     });
 
-    // Draw hit point coordinate marker
+    // Draw hit point coordinate marker with location-based color
     if (hitPointCoord) {
       const canvasX = coordToCanvas(hitPointCoord.x, "x");
       const canvasY = coordToCanvas(hitPointCoord.y, "y");
 
-      // Draw simple solid circle marker
-      ctx.fillStyle = "#2563eb"; // blue-600
+      // Location-based colors: internal = blue, external = orange
+      const markerColor = hitPointLocation === "external" ? "#f97316" : "#2563eb"; // orange-500 : blue-600
+      const markerOutlineColor = hitPointLocation === "external" ? "#ea580c" : "#1d4ed8"; // orange-600 : blue-700
+
+      // Draw circle with outline
+      ctx.fillStyle = markerColor;
       ctx.beginPath();
-      ctx.arc(canvasX, canvasY, 6, 0, 2 * Math.PI);
+      ctx.arc(canvasX, canvasY, 7, 0, 2 * Math.PI);
       ctx.fill();
+
+      // Add outline for better visibility
+      ctx.strokeStyle = markerOutlineColor;
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
 
     // Draw selected hit point from recent list with animation
@@ -245,7 +274,17 @@ export default function TonefieldCanvas({
       // Get color based on strength (heat map)
       const strengthColor = getStrengthColor(selectedHitPoint.strength);
 
-      // Draw animated outer ring with strength-based color
+      // Location-based colors for outer ring
+      const locationColor = selectedHitPoint.location === "external" ? "#f97316" : "#2563eb"; // orange-500 : blue-600
+
+      // Draw animated outer ring with location-based color
+      ctx.strokeStyle = `${locationColor}${Math.floor(pulseOpacity * 255).toString(16).padStart(2, '0')}`;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(canvasX, canvasY, 14 * pulseScale, 0, 2 * Math.PI);
+      ctx.stroke();
+
+      // Draw middle ring with strength-based color (pulsing)
       ctx.strokeStyle = strengthColor.rgba(pulseOpacity);
       ctx.lineWidth = 3;
       ctx.beginPath();
@@ -311,7 +350,7 @@ export default function TonefieldCanvas({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [selectedCoords, hitPointCoord, selectedHitPoint]);
+  }, [selectedCoords, hitPointCoord, hitPointLocation, selectedHitPoint]);
 
   return (
     <canvas

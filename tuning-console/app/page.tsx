@@ -212,14 +212,14 @@ export default function HomePage() {
         조율오차 기반 최적타점 산출을 위한 기초타점데이터 학습
       </h1>
 
-      <div className="max-w-[1920px] mx-auto grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
+      <div className="max-w-[1920px] mx-auto grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
         {/* Left: Controls */}
         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg transition-colors">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">조율오차 입력</h2>
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 dark:text-white">조율오차 입력</h2>
             <button
               onClick={handleRandomize}
-              className="w-10 h-10 rounded-full bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 text-white font-bold text-lg flex items-center justify-center transition-colors shadow-md"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 text-white font-bold text-base sm:text-lg flex items-center justify-center transition-colors shadow-md flex-shrink-0"
               title="Generate random values (-30 ~ +30)"
             >
               R
@@ -227,53 +227,53 @@ export default function HomePage() {
           </div>
 
           <div className="space-y-3 sm:space-y-4">
-            <div className="flex items-center gap-3">
-              <label className="text-base font-semibold text-gray-700 dark:text-gray-300 min-w-[80px]">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300 min-w-[60px] sm:min-w-[80px]">
                 5도 (Hz)
               </label>
               <input
                 type="number"
                 value={fifth}
                 onChange={(e) => setFifth(parseFloat(e.target.value) || 0)}
-                className="flex-1 px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-2xl font-bold text-center focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xl sm:text-2xl font-bold text-center focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
                 step="0.1"
               />
             </div>
 
-            <div className="flex items-center gap-3">
-              <label className="text-base font-semibold text-gray-700 dark:text-gray-300 min-w-[80px]">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300 min-w-[60px] sm:min-w-[80px]">
                 옥타브 (Hz)
               </label>
               <input
                 type="number"
                 value={octave}
                 onChange={(e) => setOctave(parseFloat(e.target.value) || 0)}
-                className="flex-1 px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-2xl font-bold text-center focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xl sm:text-2xl font-bold text-center focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
                 step="0.1"
               />
             </div>
 
-            <div className="flex items-center gap-3">
-              <label className="text-base font-semibold text-gray-700 dark:text-gray-300 min-w-[80px]">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300 min-w-[60px] sm:min-w-[80px]">
                 토닉 (Hz)
               </label>
               <input
                 type="number"
                 value={tonic}
                 onChange={(e) => setTonic(parseFloat(e.target.value) || 0)}
-                className="flex-1 px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-2xl font-bold text-center focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xl sm:text-2xl font-bold text-center focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
                 step="0.1"
               />
             </div>
           </div>
 
           {/* Hit Point Input Fields */}
-            <div className={`mt-4 sm:mt-6 p-4 border rounded-lg space-y-3 transition-all ${
+            <div className={`mt-4 sm:mt-6 p-3 sm:p-4 border rounded-lg space-y-2 sm:space-y-3 transition-all ${
               isSaveEnabled
                 ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 opacity-100"
                 : "bg-gray-50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600 opacity-60"
             }`}>
-              <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-3">
+              <h3 className="font-semibold text-sm sm:text-base text-blue-900 dark:text-blue-300 mb-2 sm:mb-3">
                 타점 파라미터
               </h3>
 
@@ -298,7 +298,7 @@ export default function HomePage() {
                     onClick={() => setHitPointLocation("external")}
                     className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
                       hitPointLocation === "external"
-                        ? "bg-blue-600 text-white dark:bg-blue-500"
+                        ? "bg-orange-500 text-white dark:bg-orange-600 hover:bg-orange-600 dark:hover:bg-orange-700"
                         : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                     }`}
                   >
@@ -413,9 +413,9 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* Right: Tonefield Canvas */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg transition-colors">
-          <h2 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white">
+        {/* Center: Tonefield Canvas */}
+        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg transition-colors lg:col-span-2 xl:col-span-1">
+          <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white">
             톤필드좌표계
           </h2>
           <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3 sm:mb-4">
@@ -425,6 +425,7 @@ export default function HomePage() {
             selectedCoords={selectedCoords}
             onCoordClick={handleCanvasClick}
             hitPointCoord={hitPointCoord}
+            hitPointLocation={hitPointLocation}
             selectedHitPoint={selectedHitPoint}
           />
 
@@ -446,9 +447,9 @@ export default function HomePage() {
 
         {/* Right: Recent Hit Points */}
         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg transition-colors">
-          <h2 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+          <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white flex items-center gap-2 flex-wrap">
             최근 타점
-            <span className="text-sm font-normal px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
+            <span className="text-xs sm:text-sm font-normal px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
               {recentHitPoints.length}
             </span>
           </h2>
@@ -506,51 +507,57 @@ export default function HomePage() {
                           </div>
                         </div>
 
-                        {/* 좌표 정보 */}
-                        <div className="grid grid-cols-3 gap-2 mb-2">
-                          <div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">위치</div>
-                            <div className="text-base text-gray-700 dark:text-gray-300">
-                              {hitPoint.location === "internal" ? "내부" : "외부"}
+                        {/* 위치/좌표/강도 | 5도/옥타브/토닉 2열 그리드 */}
+                        <div className="grid grid-cols-2 gap-4 mb-2 text-sm">
+                          {/* 왼쪽 열: 위치, 좌표, 강도 */}
+                          <div className="space-y-2">
+                            <div>
+                              <div className="text-gray-500 dark:text-gray-400">위치</div>
+                              <div className="text-gray-700 dark:text-gray-300">
+                                {hitPoint.location === "internal" ? "내부" : "외부"}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-gray-500 dark:text-gray-400">좌표</div>
+                              <div className="text-gray-700 dark:text-gray-300">
+                                ({hitPoint.coordinate_x.toFixed(3)}, {hitPoint.coordinate_y.toFixed(3)})
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-gray-500 dark:text-gray-400">강도</div>
+                              <div className="text-gray-700 dark:text-gray-300">
+                                {hitPoint.strength >= 0 ? '+' : ''}{hitPoint.strength}
+                              </div>
                             </div>
                           </div>
-                          <div className="col-span-2">
-                            <div className="text-sm text-gray-500 dark:text-gray-400">좌표</div>
-                            <div className="text-base text-gray-700 dark:text-gray-300">
-                              ({hitPoint.coordinate_x.toFixed(3)}, {hitPoint.coordinate_y.toFixed(3)})
+
+                          {/* 오른쪽 열: 5도, 옥타브, 토닉 */}
+                          <div className="space-y-2">
+                            <div>
+                              <div className="text-gray-500 dark:text-gray-400">5도</div>
+                              <div className="text-gray-700 dark:text-gray-300">{hitPoint.fifth}Hz</div>
+                            </div>
+                            <div>
+                              <div className="text-gray-500 dark:text-gray-400">옥타브</div>
+                              <div className="text-gray-700 dark:text-gray-300">{hitPoint.octave}Hz</div>
+                            </div>
+                            <div>
+                              <div className="text-gray-500 dark:text-gray-400">토닉</div>
+                              <div className="text-gray-700 dark:text-gray-300">{hitPoint.tonic}Hz</div>
                             </div>
                           </div>
                         </div>
 
-                        {/* 조율 오차 정보 */}
-                        <div className="grid grid-cols-3 gap-2 mb-2 text-sm">
-                          <div>
-                            <div className="text-gray-500 dark:text-gray-400">5도</div>
-                            <div className="text-gray-700 dark:text-gray-300">{hitPoint.fifth}Hz</div>
-                          </div>
-                          <div>
-                            <div className="text-gray-500 dark:text-gray-400">옥타브</div>
-                            <div className="text-gray-700 dark:text-gray-300">{hitPoint.octave}Hz</div>
-                          </div>
-                          <div>
-                            <div className="text-gray-500 dark:text-gray-400">토닉</div>
-                            <div className="text-gray-700 dark:text-gray-300">{hitPoint.tonic}Hz</div>
-                          </div>
-                        </div>
-
-                        {/* 강도 및 시간 */}
-                        <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-600">
-                          <div>강도: {hitPoint.strength >= 0 ? '+' : ''}{hitPoint.strength}</div>
-                          <div>
-                            {hitPoint.created_at
-                              ? new Date(hitPoint.created_at).toLocaleString("ko-KR", {
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
-                              : ""}
-                          </div>
+                        {/* 날짜 */}
+                        <div className="text-sm text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-600">
+                          {hitPoint.created_at
+                            ? new Date(hitPoint.created_at).toLocaleString("ko-KR", {
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : ""}
                         </div>
                       </>
                     ) : (
