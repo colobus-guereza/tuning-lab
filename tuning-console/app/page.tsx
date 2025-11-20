@@ -142,48 +142,54 @@ export default function HomePage() {
     const primary = scores[0];
     const secondary = scores[1];
 
-    // 2단계: 상/하반구 결정 (수직 방향 힘 결정)
+    // 2-3단계: 벡터 힘 결정 (축 고립 로직 적용)
+    let vectorX: number;
     let vectorY: number;
-    let isUpperHemisphere = false;
 
-    if (primary.type === 'octave') {
-      isUpperHemisphere = true;
-      vectorY = forceOctave;  // 상반구: 옥타브 힘 (양수)
-    } else if (primary.type === 'tonic') {
-      isUpperHemisphere = false;
-      vectorY = -forceTonic;  // 하반구: 토닉 힘 (음수)
-    } else {
-      // 5도가 1순위면 2순위로 결정
-      if (secondary.type === 'octave') {
-        isUpperHemisphere = true;
-        vectorY = forceOctave;
+    // [Case 1] 조율 대상이 5도인 경우
+    if (primary.type === 'fifth') {
+      // X축 힘: 5도 방향 (좌/우 랜덤)
+      const isRight = Math.random() >= 0.5;
+      vectorX = isRight ? forceFifth : -forceFifth;
+
+      // Y축 힘: 2순위와의 부호 검증
+      const secondaryValue = secondary.value;
+      const isSignSame = Math.sign(primary.value) === Math.sign(secondaryValue);
+
+      if (isSignSame || secondaryValue === 0) {
+        // [협력 관계] 부호 동일 → 2순위 방향으로 Y축 힘 허용
+        if (secondary.type === 'octave') {
+          vectorY = forceOctave;  // 상반구 (양수)
+        } else {
+          vectorY = -forceTonic;  // 하반구 (음수)
+        }
       } else {
-        isUpperHemisphere = false;
-        vectorY = -forceTonic;
+        // [상충 관계] 부호 반대 → Y축 힘 제거 (수평선 고립)
+        // 순수 수평축(9시/3시) 타격으로 5도만 조율, 토닉/옥타브 영향 최소화
+        vectorY = 0;
       }
     }
+    // [Case 2] 조율 대상이 토닉/옥타브인 경우
+    else {
+      // Y축 힘: 조율 대상 방향
+      if (primary.type === 'octave') {
+        vectorY = forceOctave;  // 상반구 (양수)
+      } else {
+        vectorY = -forceTonic;  // 하반구 (음수)
+      }
 
-    // 3단계: 좌/우 결정 (수평 방향 힘 결정) - 축 고립 로직 적용
-    let vectorX: number;
-
-    // 조율 대상이 토닉/옥타브(수직축)인 경우에만 부호 검사
-    if (primary.type === 'tonic' || primary.type === 'octave') {
-      const targetValue = primary.value;
-      const isSignSame = Math.sign(targetValue) === Math.sign(fifthVal);
+      // X축 힘: 5도와의 부호 검증
+      const isSignSame = Math.sign(primary.value) === Math.sign(fifthVal);
 
       if (isSignSame || fifthVal === 0) {
-        // [협력 관계] 부호가 같음 → 5도 벡터 포함하여 대각선 타격 (일타이피 효과)
+        // [협력 관계] 부호 동일 → 5도 벡터 포함 (대각선 타격)
         const isRight = Math.random() >= 0.5;
         vectorX = isRight ? forceFifth : -forceFifth;
       } else {
-        // [상충 관계] 부호가 반대 → 5도 벡터 제외 (축 고립)
-        // 순수 수직축(12시/6시) 타격으로 주 대상만 조율, 5도 영향 최소화
+        // [상충 관계] 부호 반대 → X축 힘 제거 (수직선 고립)
+        // 순수 수직축(12시/6시) 타격으로 토닉/옥타브만 조율, 5도 영향 최소화
         vectorX = 0;
       }
-    } else {
-      // 5도가 주 조율 대상인 경우 → 기존 로직 (좌/우 랜덤)
-      const isRight = Math.random() >= 0.5;
-      vectorX = isRight ? forceFifth : -forceFifth;
     }
 
     // 4단계: 각도 계산 (atan2 사용 - 비율 문제 자동 해결!)
@@ -358,6 +364,45 @@ export default function HomePage() {
     }
   };
 
+  // 협력 관계 판별 - 어느 필드를 강조할지 결정
+  const cooperativeField = (() => {
+    if (!tuningTarget) return null;
+
+    const tonicVal = parseFloat(tonic) || 0;
+    const octaveVal = parseFloat(octave) || 0;
+    const fifthVal = parseFloat(fifth) || 0;
+
+    // Case 1: 토닉/옥타브가 타겟 → 5도와 협력 관계 확인
+    if (tuningTarget === 'tonic' || tuningTarget === 'octave') {
+      const targetValue = tuningTarget === 'tonic' ? tonicVal : octaveVal;
+      if (fifthVal === 0 || isNaN(targetValue) || isNaN(fifthVal)) return null;
+
+      // 부호가 같으면 5도 강조
+      return Math.sign(targetValue) === Math.sign(fifthVal) ? 'fifth' : null;
+    }
+
+    // Case 2: 5도가 타겟 → 2순위(옥타브 or 토닉)와 협력 관계 확인
+    if (tuningTarget === 'fifth') {
+      // 2순위 결정 (가중치 점수 기준)
+      const eT = Math.abs(tonicVal);
+      const eO = Math.abs(octaveVal);
+
+      const scores = [
+        { type: 'tonic', score: eT * 6, value: tonicVal },
+        { type: 'octave', score: eO * 3, value: octaveVal }
+      ].sort((a, b) => b.score - a.score);
+
+      const secondary = scores[0];
+
+      if (secondary.value === 0 || isNaN(fifthVal)) return null;
+
+      // 부호가 같으면 2순위 강조
+      return Math.sign(fifthVal) === Math.sign(secondary.value) ? secondary.type : null;
+    }
+
+    return null;
+  })();
+
   return (
     <main className="min-h-screen p-4 sm:p-6 lg:p-8 bg-gray-50 dark:bg-gray-900 transition-colors">
       <h1 className="text-3xl sm:text-4xl font-bold mb-6 sm:mb-8 text-center text-gray-900 dark:text-white">
@@ -383,18 +428,22 @@ export default function HomePage() {
               <label className={`text-sm sm:text-base font-semibold min-w-[60px] sm:min-w-[80px] flex items-center gap-1 ${
                 tuningTarget === "fifth"
                   ? "text-red-600 dark:text-red-400"
+                  : cooperativeField === "fifth"
+                  ? "text-red-500/70 dark:text-red-400/70"
                   : "text-gray-700 dark:text-gray-300"
               }`}>
-                {tuningTarget === "fifth" && "🎯 "}5도 (Hz)
+                5도 (Hz)
               </label>
               <input
                 type="text"
                 inputMode="decimal"
                 value={fifth}
                 onChange={(e) => setFifth(e.target.value)}
-                className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-colors ${
+                className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${
                   tuningTarget === "fifth"
                     ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
+                    : cooperativeField === "fifth"
+                    ? "border-red-500/50 dark:border-red-400/50 bg-red-50/50 dark:bg-red-900/10 text-red-900/70 dark:text-red-100/70 focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
                     : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                 }`}
               />
@@ -404,18 +453,22 @@ export default function HomePage() {
               <label className={`text-sm sm:text-base font-semibold min-w-[60px] sm:min-w-[80px] flex items-center gap-1 ${
                 tuningTarget === "octave"
                   ? "text-red-600 dark:text-red-400"
+                  : cooperativeField === "octave"
+                  ? "text-red-500/70 dark:text-red-400/70"
                   : "text-gray-700 dark:text-gray-300"
               }`}>
-                {tuningTarget === "octave" && "🎯 "}옥타브 (Hz)
+                옥타브 (Hz)
               </label>
               <input
                 type="text"
                 inputMode="decimal"
                 value={octave}
                 onChange={(e) => setOctave(e.target.value)}
-                className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-colors ${
+                className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${
                   tuningTarget === "octave"
                     ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
+                    : cooperativeField === "octave"
+                    ? "border-red-500/50 dark:border-red-400/50 bg-red-50/50 dark:bg-red-900/10 text-red-900/70 dark:text-red-100/70 focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
                     : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                 }`}
               />
@@ -425,18 +478,22 @@ export default function HomePage() {
               <label className={`text-sm sm:text-base font-semibold min-w-[60px] sm:min-w-[80px] flex items-center gap-1 ${
                 tuningTarget === "tonic"
                   ? "text-red-600 dark:text-red-400"
+                  : cooperativeField === "tonic"
+                  ? "text-red-500/70 dark:text-red-400/70"
                   : "text-gray-700 dark:text-gray-300"
               }`}>
-                {tuningTarget === "tonic" && "🎯 "}토닉 (Hz)
+                토닉 (Hz)
               </label>
               <input
                 type="text"
                 inputMode="decimal"
                 value={tonic}
                 onChange={(e) => setTonic(e.target.value)}
-                className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-colors ${
+                className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${
                   tuningTarget === "tonic"
                     ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
+                    : cooperativeField === "tonic"
+                    ? "border-red-500/50 dark:border-red-400/50 bg-red-50/50 dark:bg-red-900/10 text-red-900/70 dark:text-red-100/70 focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
                     : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                 }`}
               />
