@@ -146,26 +146,39 @@ export default function HomePage() {
     let vectorX: number;
     let vectorY: number;
 
-    // [Case 1] 조율 대상이 5도인 경우
+    // [Case 1] 조율 대상이 5도인 경우 - 협력 파트너 우선 탐색
     if (primary.type === 'fifth') {
       // X축 힘: 5도 방향 (좌/우 랜덤)
       const isRight = Math.random() >= 0.5;
       vectorX = isRight ? forceFifth : -forceFifth;
 
-      // Y축 힘: 2순위와의 부호 검증
-      const secondaryValue = secondary.value;
-      const isSignSame = Math.sign(primary.value) === Math.sign(secondaryValue);
+      // Y축 파트너 찾기: 부호 우선 매칭 (크기보다 협력 가능성 우선)
+      const fifthSign = Math.sign(primary.value);
 
-      if (isSignSame || secondaryValue === 0) {
-        // [협력 관계] 부호 동일 → 2순위 방향으로 Y축 힘 허용
-        if (secondary.type === 'octave') {
-          vectorY = forceOctave;  // 상반구 (양수)
+      // 후보군: 토닉과 옥타브
+      const candidates = [
+        { type: 'octave', value: octaveVal, force: forceOctave, sign: Math.sign(octaveVal) },
+        { type: 'tonic', value: tonicVal, force: forceTonic, sign: Math.sign(tonicVal) }
+      ];
+
+      // 협력 가능한 파트너 필터링 (부호가 같은 것만)
+      const cooperatives = candidates.filter(c => c.sign === fifthSign && c.value !== 0);
+
+      if (cooperatives.length > 0) {
+        // [협력자 있음] 비록 작더라도 협력 가능한 파트너 선택
+        // 둘 다 협력자면 힘이 큰 쪽 선택
+        cooperatives.sort((a, b) => b.force - a.force);
+        const partner = cooperatives[0];
+
+        // 파트너 방향으로 Y축 힘 할당
+        if (partner.type === 'octave') {
+          vectorY = partner.force;  // 상반구 (양수)
         } else {
-          vectorY = -forceTonic;  // 하반구 (음수)
+          vectorY = -partner.force;  // 하반구 (음수)
         }
       } else {
-        // [상충 관계] 부호 반대 → Y축 힘 제거 (수평선 고립)
-        // 순수 수평축(9시/3시) 타격으로 5도만 조율, 토닉/옥타브 영향 최소화
+        // [협력자 없음] 둘 다 부호가 반대 → 수평선 고립
+        // 순수 수평축(9시/3시) 타격으로 5도만 조율
         vectorY = 0;
       }
     }
@@ -383,24 +396,78 @@ export default function HomePage() {
 
     // Case 2: 5도가 타겟 → 2순위(옥타브 or 토닉)와 협력 관계 확인
     if (tuningTarget === 'fifth') {
-      // 2순위 결정 (가중치 점수 기준)
-      const eT = Math.abs(tonicVal);
-      const eO = Math.abs(octaveVal);
+      // 협력 파트너 탐색 (부호 우선)
+      const fifthSign = Math.sign(fifthVal);
+      const candidates = [
+        { type: 'tonic', value: tonicVal, sign: Math.sign(tonicVal) },
+        { type: 'octave', value: octaveVal, sign: Math.sign(octaveVal) }
+      ];
 
-      const scores = [
-        { type: 'tonic', score: eT * 6, value: tonicVal },
-        { type: 'octave', score: eO * 3, value: octaveVal }
-      ].sort((a, b) => b.score - a.score);
+      const cooperatives = candidates.filter(c => c.sign === fifthSign && c.value !== 0);
 
-      const secondary = scores[0];
-
-      if (secondary.value === 0 || isNaN(fifthVal)) return null;
-
-      // 부호가 같으면 2순위 강조
-      return Math.sign(fifthVal) === Math.sign(secondary.value) ? secondary.type : null;
+      if (cooperatives.length > 0) {
+        // 협력자 중 절대값이 큰 것 선택
+        const partner = cooperatives.sort((a, b) => Math.abs(b.value) - Math.abs(a.value))[0];
+        return partner.type as 'tonic' | 'octave';
+      }
     }
 
     return null;
+  })();
+
+  // 좌표 계산에서 제외된 필드 판별 (비활성화 효과용) - 복수 가능
+  const excludedFields = (() => {
+    if (!tuningTarget) return [];
+
+    const tonicVal = parseFloat(tonic) || 0;
+    const octaveVal = parseFloat(octave) || 0;
+    const fifthVal = parseFloat(fifth) || 0;
+
+    const excluded: ('tonic' | 'octave' | 'fifth')[] = [];
+
+    // Case 1: 토닉/옥타브가 타겟
+    if (tuningTarget === 'tonic' || tuningTarget === 'octave') {
+      const targetValue = tuningTarget === 'tonic' ? tonicVal : octaveVal;
+
+      // 다른 수직축 필드는 항상 제외됨 (Y축 공유)
+      if (tuningTarget === 'tonic') {
+        excluded.push('octave');
+      } else {
+        excluded.push('tonic');
+      }
+
+      // 5도가 협력하지 않으면 추가로 제외됨
+      if (fifthVal !== 0 && !isNaN(targetValue) && !isNaN(fifthVal)) {
+        if (Math.sign(targetValue) !== Math.sign(fifthVal)) {
+          excluded.push('fifth');
+        }
+      }
+
+      return excluded;
+    }
+
+    // Case 2: 5도가 타겟
+    if (tuningTarget === 'fifth') {
+      const fifthSign = Math.sign(fifthVal);
+      const tonicSign = Math.sign(tonicVal);
+      const octaveSign = Math.sign(octaveVal);
+
+      const tonicCooperates = tonicSign === fifthSign && tonicVal !== 0;
+      const octaveCooperates = octaveSign === fifthSign && octaveVal !== 0;
+
+      if (!tonicCooperates && !octaveCooperates) {
+        // 둘 다 협력하지 않으면 둘 다 제외
+        excluded.push('tonic', 'octave');
+      } else {
+        // 하나만 협력하면 나머지 제외
+        if (!tonicCooperates) excluded.push('tonic');
+        if (!octaveCooperates) excluded.push('octave');
+      }
+
+      return excluded;
+    }
+
+    return [];
   })();
 
   return (
@@ -425,11 +492,13 @@ export default function HomePage() {
 
           <div className="space-y-3 sm:space-y-4">
             <div className="flex items-center gap-2 sm:gap-3">
-              <label className={`text-sm sm:text-base font-semibold min-w-[60px] sm:min-w-[80px] flex items-center gap-1 ${
+              <label className={`text-sm sm:text-base font-semibold min-w-[60px] sm:min-w-[80px] flex items-center gap-1 transition-all ${
                 tuningTarget === "fifth"
                   ? "text-red-600 dark:text-red-400"
                   : cooperativeField === "fifth"
                   ? "text-red-500/70 dark:text-red-400/70"
+                  : excludedFields.includes("fifth")
+                  ? "text-gray-400 dark:text-gray-600"
                   : "text-gray-700 dark:text-gray-300"
               }`}>
                 5도 (Hz)
@@ -444,17 +513,21 @@ export default function HomePage() {
                     ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
                     : cooperativeField === "fifth"
                     ? "border-red-500/50 dark:border-red-400/50 bg-red-50/50 dark:bg-red-900/10 text-red-900/70 dark:text-red-100/70 focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
+                    : excludedFields.includes("fifth")
+                    ? "border-gray-300/50 dark:border-gray-700/50 bg-gray-100/50 dark:bg-gray-800/30 text-gray-400 dark:text-gray-600 opacity-50"
                     : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                 }`}
               />
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              <label className={`text-sm sm:text-base font-semibold min-w-[60px] sm:min-w-[80px] flex items-center gap-1 ${
+              <label className={`text-sm sm:text-base font-semibold min-w-[60px] sm:min-w-[80px] flex items-center gap-1 transition-all ${
                 tuningTarget === "octave"
                   ? "text-red-600 dark:text-red-400"
                   : cooperativeField === "octave"
                   ? "text-red-500/70 dark:text-red-400/70"
+                  : excludedFields.includes("octave")
+                  ? "text-gray-400 dark:text-gray-600"
                   : "text-gray-700 dark:text-gray-300"
               }`}>
                 옥타브 (Hz)
@@ -469,17 +542,21 @@ export default function HomePage() {
                     ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
                     : cooperativeField === "octave"
                     ? "border-red-500/50 dark:border-red-400/50 bg-red-50/50 dark:bg-red-900/10 text-red-900/70 dark:text-red-100/70 focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
+                    : excludedFields.includes("octave")
+                    ? "border-gray-300/50 dark:border-gray-700/50 bg-gray-100/50 dark:bg-gray-800/30 text-gray-400 dark:text-gray-600 opacity-50"
                     : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                 }`}
               />
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              <label className={`text-sm sm:text-base font-semibold min-w-[60px] sm:min-w-[80px] flex items-center gap-1 ${
+              <label className={`text-sm sm:text-base font-semibold min-w-[60px] sm:min-w-[80px] flex items-center gap-1 transition-all ${
                 tuningTarget === "tonic"
                   ? "text-red-600 dark:text-red-400"
                   : cooperativeField === "tonic"
                   ? "text-red-500/70 dark:text-red-400/70"
+                  : excludedFields.includes("tonic")
+                  ? "text-gray-400 dark:text-gray-600"
                   : "text-gray-700 dark:text-gray-300"
               }`}>
                 토닉 (Hz)
@@ -494,6 +571,8 @@ export default function HomePage() {
                     ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
                     : cooperativeField === "tonic"
                     ? "border-red-500/50 dark:border-red-400/50 bg-red-50/50 dark:bg-red-900/10 text-red-900/70 dark:text-red-100/70 focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
+                    : excludedFields.includes("tonic")
+                    ? "border-gray-300/50 dark:border-gray-700/50 bg-gray-100/50 dark:bg-gray-800/30 text-gray-400 dark:text-gray-600 opacity-50"
                     : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                 }`}
               />
@@ -871,20 +950,34 @@ export default function HomePage() {
                         </div>
                       </>
                     ) : (
-                      // 접힌 상태: 강도, I/E, 의도만 한 줄로 표시
+                      // 접힌 상태: 조율대상, 의도, 위치, 강도×타수 표시
                       <div className="flex items-center gap-3 text-base">
-                        <div className="font-semibold text-gray-900 dark:text-white">
-                          {hitPoint.strength >= 0 ? '+' : ''}{hitPoint.strength}
+                        {/* 조율대상 */}
+                        <div className="px-2 py-1 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 font-medium">
+                          {hitPoint.tuning_target === "tonic" ? "토닉"
+                           : hitPoint.tuning_target === "octave" ? "옥타브"
+                           : "5도"}
                         </div>
-                        <div className="px-2 py-1 rounded bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium">
-                          {hitPoint.location === "internal" ? "I" : "E"}
-                        </div>
-                        <div className="flex-1 text-gray-700 dark:text-gray-300 truncate">
+
+                        {/* 의도 */}
+                        <div className="text-gray-700 dark:text-gray-300 truncate max-w-[200px]">
                           {hitPoint.intent}
                         </div>
+
+                        {/* 외부/내부 */}
+                        <div className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium">
+                          {hitPoint.location === "external" ? "외부" : "내부"}
+                        </div>
+
+                        {/* 강도×타수 */}
+                        <div className="font-semibold text-gray-900 dark:text-white">
+                          {hitPoint.strength >= 0 ? '+' : ''}{hitPoint.strength} × {hitPoint.hit_count}
+                        </div>
+
+                        {/* 삭제 버튼 */}
                         <button
                           onClick={(e) => handleDeleteHitPoint(e, hitPoint.id!)}
-                          className="px-3 py-1 text-sm font-medium text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-500 rounded transition-colors border border-red-600 dark:border-red-400"
+                          className="ml-auto px-3 py-1 text-sm font-medium text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-500 rounded transition-colors border border-red-600 dark:border-red-400"
                           title="삭제"
                         >
                           삭제
