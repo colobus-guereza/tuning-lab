@@ -17,9 +17,11 @@ export interface HitPointData {
   tonic: number;
   octave: number;
   fifth: number;
+  tuning_target: 'tonic' | 'octave' | 'fifth';
   coordinate_x: number;
   coordinate_y: number;
   strength: number;
+  hit_count: number;
   location: 'internal' | 'external';
   intent: string;
   created_at?: string;

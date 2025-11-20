@@ -5,9 +5,10 @@ import TonefieldCanvas from "./components/TonefieldCanvas";
 import { supabase, HitPointData } from "@/lib/supabase";
 
 export default function HomePage() {
-  const [tonic, setTonic] = useState(0);
-  const [octave, setOctave] = useState(0);
-  const [fifth, setFifth] = useState(0);
+  const [tonic, setTonic] = useState<string>("0");
+  const [octave, setOctave] = useState<string>("0");
+  const [fifth, setFifth] = useState<string>("0");
+  const [tuningTarget, setTuningTarget] = useState<"tonic" | "octave" | "fifth" | null>(null);
   const [result, setResult] = useState<{
     L: number;
     S: number;
@@ -20,7 +21,8 @@ export default function HomePage() {
     x: number;
     y: number;
   } | null>(null);
-  const [hitPointStrength, setHitPointStrength] = useState<number | null>(null);
+  const [hitPointStrength, setHitPointStrength] = useState<string>("");
+  const [hitPointHitCount, setHitPointHitCount] = useState<string>("");
   const [hitPointLocation, setHitPointLocation] = useState<"external" | "internal" | null>("internal");
   const [hitPointIntent, setHitPointIntent] = useState<string>("");
   const [recentHitPoints, setRecentHitPoints] = useState<HitPointData[]>([]);
@@ -56,6 +58,27 @@ export default function HomePage() {
     fetchRecentHitPoints();
   }, []);
 
+  // 조율대상 자동 계산 (실제 주파수 비율 1:2:3 고려)
+  // 토닉 1Hz = 옥타브 2Hz = 5도 3Hz (같은 영향력)
+  useEffect(() => {
+    // 가중치: 토닉×6, 옥타브×3, 5도×2 (공통분모 6 사용)
+    const tonicValue = Math.abs(parseFloat(tonic) || 0) * 6;
+    const octaveValue = Math.abs(parseFloat(octave) || 0) * 3;
+    const fifthValue = Math.abs(parseFloat(fifth) || 0) * 2;
+
+    const maxValue = Math.max(tonicValue, octaveValue, fifthValue);
+
+    if (maxValue === 0) {
+      setTuningTarget(null);
+    } else if (tonicValue === maxValue) {
+      setTuningTarget("tonic");
+    } else if (octaveValue === maxValue) {
+      setTuningTarget("octave");
+    } else {
+      setTuningTarget("fifth");
+    }
+  }, [tonic, octave, fifth]);
+
   // 카드 바깥 클릭 시 카드 접기
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -90,14 +113,19 @@ export default function HomePage() {
     const randomOctave = Math.random() * 60 - 30;
     const randomTonic = Math.random() * 60 - 30;
 
-    setFifth(parseFloat(randomFifth.toFixed(2)));
-    setOctave(parseFloat(randomOctave.toFixed(2)));
-    setTonic(parseFloat(randomTonic.toFixed(2)));
+    setFifth(randomFifth.toFixed(2));
+    setOctave(randomOctave.toFixed(2));
+    setTonic(randomTonic.toFixed(2));
   };
 
   const handleSaveHitPoint = async () => {
-    if (!hitPointCoord || hitPointStrength === null || !hitPointLocation || !hitPointIntent.trim()) {
+    if (!hitPointCoord || !hitPointStrength.trim() || !hitPointHitCount.trim() || !hitPointLocation || !hitPointIntent.trim()) {
       alert("모든 필드를 입력해주세요");
+      return;
+    }
+
+    if (!tuningTarget) {
+      alert("조율대상이 설정되지 않았습니다. 조율오차 값을 입력해주세요.");
       return;
     }
 
@@ -113,12 +141,14 @@ export default function HomePage() {
         .from("hit_points")
         .insert([
           {
-            tonic,
-            octave,
-            fifth,
+            tonic: parseFloat(tonic),
+            octave: parseFloat(octave),
+            fifth: parseFloat(fifth),
+            tuning_target: tuningTarget,
             coordinate_x: hitPointCoord.x,
             coordinate_y: hitPointCoord.y,
-            strength: hitPointStrength,
+            strength: parseFloat(hitPointStrength),
+            hit_count: parseInt(hitPointHitCount),
             location: hitPointLocation,
             intent: hitPointIntent,
           },
@@ -129,11 +159,12 @@ export default function HomePage() {
         alert(`저장 실패: ${error.message}`);
       } else {
         // 저장 후 모든 입력 필드 초기화
-        setTonic(0);
-        setOctave(0);
-        setFifth(0);
+        setTonic("0");
+        setOctave("0");
+        setFifth("0");
         setHitPointCoord(null);
-        setHitPointStrength(null);
+        setHitPointStrength("");
+        setHitPointHitCount("");
         setHitPointLocation("internal");
         setHitPointIntent("");
         // 최근 데이터 새로고침
@@ -147,7 +178,8 @@ export default function HomePage() {
 
   const isSaveEnabled =
     hitPointCoord !== null &&
-    hitPointStrength !== null &&
+    hitPointStrength.trim() !== "" &&
+    hitPointHitCount.trim() !== "" &&
     hitPointLocation !== null &&
     hitPointIntent.trim() !== "";
 
@@ -228,41 +260,65 @@ export default function HomePage() {
 
           <div className="space-y-3 sm:space-y-4">
             <div className="flex items-center gap-2 sm:gap-3">
-              <label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300 min-w-[60px] sm:min-w-[80px]">
-                5도 (Hz)
+              <label className={`text-sm sm:text-base font-semibold min-w-[60px] sm:min-w-[80px] flex items-center gap-1 ${
+                tuningTarget === "fifth"
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-gray-700 dark:text-gray-300"
+              }`}>
+                {tuningTarget === "fifth" && "🎯 "}5도 (Hz)
               </label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={fifth}
-                onChange={(e) => setFifth(parseFloat(e.target.value) || 0)}
-                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xl sm:text-2xl font-bold text-center focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
-                step="0.1"
+                onChange={(e) => setFifth(e.target.value)}
+                className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-colors ${
+                  tuningTarget === "fifth"
+                    ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
+                    : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                }`}
               />
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              <label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300 min-w-[60px] sm:min-w-[80px]">
-                옥타브 (Hz)
+              <label className={`text-sm sm:text-base font-semibold min-w-[60px] sm:min-w-[80px] flex items-center gap-1 ${
+                tuningTarget === "octave"
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-gray-700 dark:text-gray-300"
+              }`}>
+                {tuningTarget === "octave" && "🎯 "}옥타브 (Hz)
               </label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={octave}
-                onChange={(e) => setOctave(parseFloat(e.target.value) || 0)}
-                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xl sm:text-2xl font-bold text-center focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
-                step="0.1"
+                onChange={(e) => setOctave(e.target.value)}
+                className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-colors ${
+                  tuningTarget === "octave"
+                    ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
+                    : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                }`}
               />
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              <label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300 min-w-[60px] sm:min-w-[80px]">
-                토닉 (Hz)
+              <label className={`text-sm sm:text-base font-semibold min-w-[60px] sm:min-w-[80px] flex items-center gap-1 ${
+                tuningTarget === "tonic"
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-gray-700 dark:text-gray-300"
+              }`}>
+                {tuningTarget === "tonic" && "🎯 "}토닉 (Hz)
               </label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={tonic}
-                onChange={(e) => setTonic(parseFloat(e.target.value) || 0)}
-                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xl sm:text-2xl font-bold text-center focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
-                step="0.1"
+                onChange={(e) => setTonic(e.target.value)}
+                className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-colors ${
+                  tuningTarget === "tonic"
+                    ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
+                    : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                }`}
               />
             </div>
           </div>
@@ -324,35 +380,70 @@ export default function HomePage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  강도
-                </label>
-                <input
-                  type="number"
-                  value={hitPointStrength ?? ""}
-                  onChange={(e) =>
-                    setHitPointStrength(
-                      e.target.value ? parseFloat(e.target.value) : null
-                    )
-                  }
-                  placeholder="강도 값을 입력하세요"
-                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
-                  step="0.1"
-                />
+              {/* 강도와 타수 그리드 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    강도
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={hitPointStrength}
+                    onChange={(e) => setHitPointStrength(e.target.value)}
+                    placeholder="강도"
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    타수
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={hitPointHitCount}
+                    onChange={(e) => setHitPointHitCount(e.target.value)}
+                    placeholder="타수"
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  의도
-                </label>
-                <input
-                  type="text"
-                  value={hitPointIntent}
-                  onChange={(e) => setHitPointIntent(e.target.value)}
-                  placeholder="의도를 간단히 입력하세요"
-                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
-                />
+              {/* 조율대상과 의도 그리드 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    조율대상
+                  </label>
+                  <input
+                    type="text"
+                    value={
+                      tuningTarget === "tonic"
+                        ? "토닉"
+                        : tuningTarget === "octave"
+                        ? "옥타브"
+                        : tuningTarget === "fifth"
+                        ? "5도"
+                        : ""
+                    }
+                    readOnly
+                    placeholder="조율대상"
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    의도
+                  </label>
+                  <input
+                    type="text"
+                    value={hitPointIntent}
+                    onChange={(e) => setHitPointIntent(e.target.value)}
+                    placeholder="의도"
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+                  />
+                </div>
               </div>
 
               <button
@@ -499,17 +590,26 @@ export default function HomePage() {
                     {isExpanded ? (
                       // 펼쳐진 상태: 전체 정보 표시
                       <>
-                        {/* 의도 (가장 우선) */}
-                        <div className="mb-3">
-                          <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">의도</div>
-                          <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {hitPoint.intent}
+                        {/* 상단 영역: 의도 + 삭제 버튼 */}
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div className="flex-1">
+                            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">의도</div>
+                            <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                              {hitPoint.intent}
+                            </div>
                           </div>
+                          <button
+                            onClick={(e) => handleDeleteHitPoint(e, hitPoint.id!)}
+                            className="px-3 py-1 text-sm font-medium text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-500 rounded transition-colors border border-red-600 dark:border-red-400 flex-shrink-0"
+                            title="삭제"
+                          >
+                            삭제
+                          </button>
                         </div>
 
-                        {/* 위치/좌표/강도 | 5도/옥타브/토닉 2열 그리드 */}
+                        {/* 위치/좌표/강도/타수 | 5도/옥타브/토닉 2열 그리드 */}
                         <div className="grid grid-cols-2 gap-4 mb-2 text-sm">
-                          {/* 왼쪽 열: 위치, 좌표, 강도 */}
+                          {/* 왼쪽 열: 위치, 좌표, 강도, 타수 */}
                           <div className="space-y-2">
                             <div>
                               <div className="text-gray-500 dark:text-gray-400">위치</div>
@@ -524,40 +624,52 @@ export default function HomePage() {
                               </div>
                             </div>
                             <div>
-                              <div className="text-gray-500 dark:text-gray-400">강도</div>
+                              <div className="text-gray-500 dark:text-gray-400">강도×타수</div>
                               <div className="text-gray-700 dark:text-gray-300">
-                                {hitPoint.strength >= 0 ? '+' : ''}{hitPoint.strength}
+                                {hitPoint.strength >= 0 ? '+' : ''}{hitPoint.strength} × {hitPoint.hit_count}
                               </div>
                             </div>
                           </div>
 
-                          {/* 오른쪽 열: 5도, 옥타브, 토닉 */}
+                          {/* 오른쪽 열: 5도, 옥타브, 토닉 (조율대상 표시) */}
                           <div className="space-y-2">
                             <div>
-                              <div className="text-gray-500 dark:text-gray-400">5도</div>
-                              <div className="text-gray-700 dark:text-gray-300">{hitPoint.fifth}Hz</div>
+                              <div className={hitPoint.tuning_target === "fifth"
+                                ? "text-red-600 dark:text-red-400 font-bold"
+                                : "text-gray-500 dark:text-gray-400"}>
+                                5도
+                              </div>
+                              <div className={hitPoint.tuning_target === "fifth"
+                                ? "text-red-600 dark:text-red-400 font-bold"
+                                : "text-gray-700 dark:text-gray-300"}>
+                                {hitPoint.fifth}Hz
+                              </div>
                             </div>
                             <div>
-                              <div className="text-gray-500 dark:text-gray-400">옥타브</div>
-                              <div className="text-gray-700 dark:text-gray-300">{hitPoint.octave}Hz</div>
+                              <div className={hitPoint.tuning_target === "octave"
+                                ? "text-red-600 dark:text-red-400 font-bold"
+                                : "text-gray-500 dark:text-gray-400"}>
+                                옥타브
+                              </div>
+                              <div className={hitPoint.tuning_target === "octave"
+                                ? "text-red-600 dark:text-red-400 font-bold"
+                                : "text-gray-700 dark:text-gray-300"}>
+                                {hitPoint.octave}Hz
+                              </div>
                             </div>
                             <div>
-                              <div className="text-gray-500 dark:text-gray-400">토닉</div>
-                              <div className="text-gray-700 dark:text-gray-300">{hitPoint.tonic}Hz</div>
+                              <div className={hitPoint.tuning_target === "tonic"
+                                ? "text-red-600 dark:text-red-400 font-bold"
+                                : "text-gray-500 dark:text-gray-400"}>
+                                토닉
+                              </div>
+                              <div className={hitPoint.tuning_target === "tonic"
+                                ? "text-red-600 dark:text-red-400 font-bold"
+                                : "text-gray-700 dark:text-gray-300"}>
+                                {hitPoint.tonic}Hz
+                              </div>
                             </div>
                           </div>
-                        </div>
-
-                        {/* 날짜 */}
-                        <div className="text-sm text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-600">
-                          {hitPoint.created_at
-                            ? new Date(hitPoint.created_at).toLocaleString("ko-KR", {
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
-                            : ""}
                         </div>
                       </>
                     ) : (
