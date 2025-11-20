@@ -34,18 +34,21 @@ export default function TonefieldCanvas({
 
   // 강도 값을 색상으로 변환 (음수=파랑, 양수=빨강)
   const getStrengthColor = (strength: number): { rgb: string; rgba: (opacity: number) => string } => {
-    // 강도의 절댓값을 기준으로 채도 계산 (0~10 범위)
+    // 강도의 절댓값을 기준으로 채도 계산
     const absStrength = Math.abs(strength);
-    const intensity = Math.min(absStrength / 10, 1); // 0~1로 정규화
+    // 0~20 범위로 정규화 (더 넓은 범위의 강도 표현)
+    const intensity = Math.min(absStrength / 20, 1);
 
-    // 채도: 강도가 높을수록 선명 (40% ~ 95%)
-    const saturation = 40 + intensity * 55;
+    // 채도: 강도가 높을수록 선명 (50% ~ 100%)
+    const saturation = 50 + intensity * 50;
 
-    // 밝기: 강도가 높을수록 진함 (60% ~ 45%)
-    const lightness = 60 - intensity * 15;
+    // 밝기: 강도가 높을수록 진함
+    // 약한 강도 (intensity 0): 밝음 (70%)
+    // 강한 강도 (intensity 1): 어두움 (35%)
+    const lightness = 70 - intensity * 35;
 
-    // 음수는 파란색(240°), 양수는 빨간색(0°)
-    const hue = strength < 0 ? 240 : 0;
+    // 음수는 파란색(220°), 양수는 빨간색(0°)
+    const hue = strength < 0 ? 220 : 0;
 
     return {
       rgb: `hsl(${hue}, ${saturation}%, ${lightness}%)`,

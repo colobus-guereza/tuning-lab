@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import TonefieldCanvas from "./components/TonefieldCanvas";
 import { supabase, HitPointData } from "@/lib/supabase";
 
@@ -27,6 +27,7 @@ export default function HomePage() {
   const [selectedHitPoint, setSelectedHitPoint] = useState<HitPointData | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [isLoadingHitPoints, setIsLoadingHitPoints] = useState<boolean>(true);
+  const cardsContainerRef = useRef<HTMLDivElement>(null);
 
   // 최근 타점 데이터 불러오기
   const fetchRecentHitPoints = async () => {
@@ -54,6 +55,25 @@ export default function HomePage() {
   useEffect(() => {
     fetchRecentHitPoints();
   }, []);
+
+  // 카드 바깥 클릭 시 카드 접기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        cardsContainerRef.current &&
+        !cardsContainerRef.current.contains(event.target as Node) &&
+        expandedCards.size > 0
+      ) {
+        setExpandedCards(new Set());
+        setSelectedHitPoint(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [expandedCards]);
 
   const handleCanvasClick = (x: number, y: number) => {
     // Clicking sets the hit point coordinate
@@ -436,7 +456,7 @@ export default function HomePage() {
             저장된 타점을 클릭하여 좌표계에 표시
           </p>
 
-          <div className="space-y-3 max-h-[800px] overflow-y-auto">
+          <div ref={cardsContainerRef} className="space-y-3 max-h-[800px] overflow-y-auto">
             {isLoadingHitPoints ? (
               // 로딩 스켈레톤: 접힌 카드와 동일한 구조
               Array.from({ length: 5 }).map((_, i) => (
