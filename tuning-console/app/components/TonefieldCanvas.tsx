@@ -250,9 +250,9 @@ export default function TonefieldCanvas({
       const canvasX = coordToCanvas(hitPointCoord.x, "x");
       const canvasY = coordToCanvas(hitPointCoord.y, "y");
 
-      // Location-based colors: internal = blue, external = red
-      const markerColor = hitPointLocation === "external" ? "#dc2626" : "#2563eb"; // red-600 : blue-600
-      const markerOutlineColor = hitPointLocation === "external" ? "#b91c1c" : "#1d4ed8"; // red-700 : blue-700
+      // Location-based colors: internal = red (상향), external = blue (하향)
+      const markerColor = hitPointLocation === "internal" ? "#dc2626" : "#2563eb"; // internal=red-600 : external=blue-600
+      const markerOutlineColor = hitPointLocation === "internal" ? "#b91c1c" : "#1d4ed8"; // internal=red-700 : external=blue-700
 
       // Draw circle with outline
       ctx.fillStyle = markerColor;
@@ -283,8 +283,8 @@ export default function TonefieldCanvas({
       // Get color based on strength (heat map)
       const strengthColor = getStrengthColor(selectedHitPoint.strength);
 
-      // Location-based colors for outer ring
-      const locationColor = selectedHitPoint.location === "external" ? "#dc2626" : "#2563eb"; // red-600 : blue-600
+      // Location-based colors for outer ring: internal = red (상향), external = blue (하향)
+      const locationColor = selectedHitPoint.location === "internal" ? "#dc2626" : "#2563eb"; // internal=red-600 : external=blue-600
 
       // Draw animated outer ring with location-based color
       ctx.strokeStyle = `${locationColor}${Math.floor(pulseOpacity * 255).toString(16).padStart(2, '0')}`;
