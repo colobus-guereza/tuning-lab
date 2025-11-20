@@ -79,6 +79,33 @@ export default function HomePage() {
     }
   }, [tonic, octave, fifth]);
 
+  // 의도와 위치 자동 계산
+  useEffect(() => {
+    if (!tuningTarget) return;
+
+    // 조율대상 값 가져오기
+    let targetValue: number;
+    if (tuningTarget === "tonic") {
+      targetValue = parseFloat(tonic) || 0;
+    } else if (tuningTarget === "octave") {
+      targetValue = parseFloat(octave) || 0;
+    } else {
+      targetValue = parseFloat(fifth) || 0;
+    }
+
+    // 의도 자동 제안
+    // 양수: 너무 높음 → 낮춰야 함 (Down)
+    // 음수: 너무 낮음 → 올려야 함 (Up)
+    const suggestedIntent = targetValue > 0 ? "Down (플랫)" : targetValue < 0 ? "Up (샵)" : "";
+    setHitPointIntent(suggestedIntent);
+
+    // 위치 자동 선택
+    // Down → 외부 타격
+    // Up → 내부 타격
+    const autoPosition = targetValue > 0 ? "external" : targetValue < 0 ? "internal" : null;
+    setHitPointLocation(autoPosition);
+  }, [tuningTarget, tonic, octave, fifth]);
+
   // 카드 바깥 클릭 시 카드 접기
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -334,9 +361,16 @@ export default function HomePage() {
               </h3>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  위치
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    위치
+                  </label>
+                  {hitPointLocation && (
+                    <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                      ✨ 자동 계산됨
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-3">
                   <button
                     type="button"
@@ -433,9 +467,16 @@ export default function HomePage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    의도
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      의도
+                    </label>
+                    {hitPointIntent && (
+                      <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                        ✨ 자동 제안됨
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={hitPointIntent}
