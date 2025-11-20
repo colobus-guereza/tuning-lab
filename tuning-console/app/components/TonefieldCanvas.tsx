@@ -294,7 +294,7 @@ export default function TonefieldCanvas({
       // Draw static inner circle with strength-based color
       ctx.fillStyle = strengthColor.rgb;
       ctx.beginPath();
-      ctx.arc(canvasX, canvasY, 6, 0, 2 * Math.PI);
+      ctx.arc(canvasX, canvasY, 7, 0, 2 * Math.PI);
       ctx.fill();
     }
   };

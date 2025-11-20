@@ -219,7 +219,7 @@ export default function HomePage() {
             <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 dark:text-white">조율오차 입력</h2>
             <button
               onClick={handleRandomize}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 text-white font-bold text-base sm:text-lg flex items-center justify-center transition-colors shadow-md flex-shrink-0"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white font-bold text-base sm:text-lg flex items-center justify-center transition-colors shadow-md flex-shrink-0"
               title="Generate random values (-30 ~ +30)"
             >
               R
