@@ -32,6 +32,27 @@ export default function TonefieldCanvas({
   const PADDING = 50;
   const FIELD_SIZE = CANVAS_SIZE - 2 * PADDING;
 
+  // 강도 값을 색상으로 변환 (음수=파랑, 양수=빨강)
+  const getStrengthColor = (strength: number): { rgb: string; rgba: (opacity: number) => string } => {
+    // 강도의 절댓값을 기준으로 채도 계산 (0~10 범위)
+    const absStrength = Math.abs(strength);
+    const intensity = Math.min(absStrength / 10, 1); // 0~1로 정규화
+
+    // 채도: 강도가 높을수록 선명 (40% ~ 95%)
+    const saturation = 40 + intensity * 55;
+
+    // 밝기: 강도가 높을수록 진함 (60% ~ 45%)
+    const lightness = 60 - intensity * 15;
+
+    // 음수는 파란색(240°), 양수는 빨간색(0°)
+    const hue = strength < 0 ? 240 : 0;
+
+    return {
+      rgb: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
+      rgba: (opacity: number) => `hsla(${hue}, ${saturation}%, ${lightness}%, ${opacity})`
+    };
+  };
+
   // Convert coordinate space [-1, 1] to canvas pixels
   const coordToCanvas = (coord: number, axis: "x" | "y"): number => {
     if (axis === "x") {
@@ -218,15 +239,18 @@ export default function TonefieldCanvas({
       const pulseScale = 1 + Math.sin(progress * Math.PI * 2) * 0.3; // oscillate between 0.7 and 1.3
       const pulseOpacity = 0.6 + Math.sin(progress * Math.PI * 2) * 0.4; // oscillate between 0.2 and 1.0
 
-      // Draw animated outer ring
-      ctx.strokeStyle = `rgba(239, 68, 68, ${pulseOpacity})`; // red-500 with varying opacity
+      // Get color based on strength (heat map)
+      const strengthColor = getStrengthColor(selectedHitPoint.strength);
+
+      // Draw animated outer ring with strength-based color
+      ctx.strokeStyle = strengthColor.rgba(pulseOpacity);
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.arc(canvasX, canvasY, 10 * pulseScale, 0, 2 * Math.PI);
       ctx.stroke();
 
-      // Draw static inner circle
-      ctx.fillStyle = "#ef4444"; // red-500
+      // Draw static inner circle with strength-based color
+      ctx.fillStyle = strengthColor.rgb;
       ctx.beginPath();
       ctx.arc(canvasX, canvasY, 6, 0, 2 * Math.PI);
       ctx.fill();
