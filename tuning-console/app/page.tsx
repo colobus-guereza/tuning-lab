@@ -290,9 +290,9 @@ export default function HomePage() {
     const randomOctave = Math.random() * 60 - 30;
     const randomTonic = Math.random() * 60 - 30;
 
-    setFifth(randomFifth.toFixed(2));
-    setOctave(randomOctave.toFixed(2));
-    setTonic(randomTonic.toFixed(2));
+    setFifth(randomFifth.toFixed(1));
+    setOctave(randomOctave.toFixed(1));
+    setTonic(randomTonic.toFixed(1));
   };
 
   const handleSaveHitPoint = async () => {
@@ -554,6 +554,12 @@ export default function HomePage() {
                 inputMode="decimal"
                 value={fifth}
                 onChange={(e) => setFifth(e.target.value)}
+                onBlur={(e) => {
+                  const val = parseFloat(e.target.value);
+                  if (!isNaN(val)) {
+                    setFifth(val.toFixed(1));
+                  }
+                }}
                 disabled={excludedFields.includes("fifth")}
                 className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${
                   tuningTarget === "fifth"
@@ -584,6 +590,12 @@ export default function HomePage() {
                 inputMode="decimal"
                 value={octave}
                 onChange={(e) => setOctave(e.target.value)}
+                onBlur={(e) => {
+                  const val = parseFloat(e.target.value);
+                  if (!isNaN(val)) {
+                    setOctave(val.toFixed(1));
+                  }
+                }}
                 disabled={excludedFields.includes("octave")}
                 className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${
                   tuningTarget === "octave"
@@ -614,6 +626,12 @@ export default function HomePage() {
                 inputMode="decimal"
                 value={tonic}
                 onChange={(e) => setTonic(e.target.value)}
+                onBlur={(e) => {
+                  const val = parseFloat(e.target.value);
+                  if (!isNaN(val)) {
+                    setTonic(val.toFixed(1));
+                  }
+                }}
                 disabled={excludedFields.includes("tonic")}
                 className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${
                   tuningTarget === "tonic"
@@ -666,7 +684,7 @@ export default function HomePage() {
                     onClick={() => setHitPointLocation("external")}
                     className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
                       hitPointLocation === "external"
-                        ? "bg-orange-500 text-white dark:bg-orange-600 hover:bg-orange-600 dark:hover:bg-orange-700"
+                        ? "bg-red-600 text-white dark:bg-red-600 hover:bg-red-700 dark:hover:bg-red-700"
                         : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                     }`}
                   >
@@ -906,95 +924,167 @@ export default function HomePage() {
                     }`}
                   >
                     {isExpanded ? (
-                      // 펼쳐진 상태: 전체 정보 표시
+                      // 펼쳐진 상태: 3단 레이아웃 (원인 → 진단 → 처방)
                       <>
-                        {/* 상단 영역: 의도 + 삭제 버튼 */}
-                        <div className="flex items-start justify-between gap-3 mb-3">
-                          <div className="flex-1">
-                            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">의도</div>
-                            <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                              {hitPoint.intent}
-                            </div>
-                          </div>
+                        {/* 상단: 삭제 버튼 */}
+                        <div className="flex justify-end mb-3">
                           <button
                             onClick={(e) => handleDeleteHitPoint(e, hitPoint.id!)}
-                            className="px-3 py-1 text-sm font-medium text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-500 rounded transition-colors border border-red-600 dark:border-red-400 flex-shrink-0"
+                            className="px-3 py-1 text-sm font-medium text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-500 rounded transition-colors border border-red-600 dark:border-red-400"
                             title="삭제"
                           >
                             삭제
                           </button>
                         </div>
 
-                        {/* 위치/좌표/강도/타수 | 5도/옥타브/토닉 2열 그리드 */}
-                        <div className="grid grid-cols-2 gap-4 mb-2 text-sm">
-                          {/* 왼쪽 열: 위치, 좌표, 강도, 타수 */}
-                          <div className="space-y-2">
-                            <div>
-                              <div className="text-gray-500 dark:text-gray-400">위치</div>
-                              <div className="text-gray-700 dark:text-gray-300">
-                                {hitPoint.location === "internal" ? "내부" : "외부"}
+                        {/* 3열 그리드: 조율오차 | 진단 | 타격지침 */}
+                        <div className="grid grid-cols-[1.2fr_1.6fr_1.2fr] items-stretch text-sm">
+                          {/* 왼쪽 열: 조율오차 스택 (토닉→옥타브→5도) - 수직 중앙 정렬 */}
+                          <div className="flex flex-col justify-center gap-3 border-r border-gray-300 dark:border-gray-700/50 pr-4 bg-gray-50 dark:bg-gray-800/50">
+                            {/* 5도 (상단) */}
+                            <div className={`flex justify-between items-center ${
+                              hitPoint.primary_target === "fifth" || hitPoint.auxiliary_target === "fifth"
+                                ? ""
+                                : "opacity-40"
+                            }`}>
+                              <div className="flex items-center gap-1.5">
+                                <span className={`text-xs ${
+                                  hitPoint.primary_target === "fifth" || hitPoint.auxiliary_target === "fifth"
+                                    ? "text-red-600 dark:text-red-400 font-semibold"
+                                    : "text-gray-500 dark:text-gray-500"
+                                }`}>5도</span>
+                                {hitPoint.primary_target === "fifth" && (
+                                  <span className="text-[9px] font-semibold bg-red-600 text-white px-1.5 py-px rounded-sm">주</span>
+                                )}
+                                {hitPoint.auxiliary_target === "fifth" && (
+                                  <span className="text-[9px] font-semibold bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/20 dark:border-orange-500/30 px-1 py-px rounded-sm">보조</span>
+                                )}
                               </div>
+                              <span className={`font-mono text-sm ${
+                                hitPoint.primary_target === "fifth"
+                                  ? "text-red-600 dark:text-red-400 font-bold"
+                                  : hitPoint.auxiliary_target === "fifth"
+                                  ? "text-orange-600 dark:text-orange-400 font-medium"
+                                  : "text-gray-500 dark:text-gray-500"
+                              }`}>{hitPoint.fifth >= 0 ? '+' : ''}{Number(hitPoint.fifth).toFixed(1)}Hz</span>
                             </div>
-                            <div>
-                              <div className="text-gray-500 dark:text-gray-400">좌표</div>
-                              <div className="text-gray-700 dark:text-gray-300">
-                                ({hitPoint.coordinate_x.toFixed(3)}, {hitPoint.coordinate_y.toFixed(3)})
+
+                            {/* 옥타브 (중간) */}
+                            <div className={`flex justify-between items-center ${
+                              hitPoint.primary_target === "octave" || hitPoint.auxiliary_target === "octave"
+                                ? ""
+                                : "opacity-40"
+                            }`}>
+                              <div className="flex items-center gap-1.5">
+                                <span className={`text-xs ${
+                                  hitPoint.primary_target === "octave" || hitPoint.auxiliary_target === "octave"
+                                    ? "text-red-600 dark:text-red-400 font-semibold"
+                                    : "text-gray-500 dark:text-gray-500"
+                                }`}>옥타브</span>
+                                {hitPoint.primary_target === "octave" && (
+                                  <span className="text-[9px] font-semibold bg-red-600 text-white px-1.5 py-px rounded-sm">주</span>
+                                )}
+                                {hitPoint.auxiliary_target === "octave" && (
+                                  <span className="text-[9px] font-semibold bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/20 dark:border-orange-500/30 px-1 py-px rounded-sm">보조</span>
+                                )}
                               </div>
+                              <span className={`font-mono text-sm ${
+                                hitPoint.primary_target === "octave"
+                                  ? "text-red-600 dark:text-red-400 font-bold"
+                                  : hitPoint.auxiliary_target === "octave"
+                                  ? "text-orange-600 dark:text-orange-400 font-medium"
+                                  : "text-gray-500 dark:text-gray-500"
+                              }`}>{hitPoint.octave >= 0 ? '+' : ''}{Number(hitPoint.octave).toFixed(1)}Hz</span>
                             </div>
-                            <div>
-                              <div className="text-gray-500 dark:text-gray-400">강도×타수</div>
-                              <div className="text-gray-700 dark:text-gray-300">
-                                {hitPoint.strength >= 0 ? '+' : ''}{hitPoint.strength} × {hitPoint.hit_count}
+
+                            {/* 토닉 (하단) */}
+                            <div className={`flex justify-between items-center ${
+                              hitPoint.primary_target === "tonic" || hitPoint.auxiliary_target === "tonic"
+                                ? ""
+                                : "opacity-40"
+                            }`}>
+                              <div className="flex items-center gap-1.5">
+                                <span className={`text-xs font-bold ${
+                                  hitPoint.primary_target === "tonic" || hitPoint.auxiliary_target === "tonic"
+                                    ? "text-red-600 dark:text-red-400"
+                                    : "text-gray-500 dark:text-gray-500"
+                                }`}>토닉</span>
+                                {hitPoint.primary_target === "tonic" && (
+                                  <span className="text-[9px] font-semibold bg-red-600 text-white px-1.5 py-px rounded-sm">주</span>
+                                )}
+                                {hitPoint.auxiliary_target === "tonic" && (
+                                  <span className="text-[9px] font-semibold bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/20 dark:border-orange-500/30 px-1 py-px rounded-sm">보조</span>
+                                )}
                               </div>
+                              <span className={`font-mono ${
+                                hitPoint.primary_target === "tonic"
+                                  ? "text-red-600 dark:text-red-400 font-bold text-base"
+                                  : hitPoint.auxiliary_target === "tonic"
+                                  ? "text-orange-600 dark:text-orange-400 font-medium text-base"
+                                  : "text-gray-500 dark:text-gray-500 text-sm"
+                              }`}>{hitPoint.tonic >= 0 ? '+' : ''}{Number(hitPoint.tonic).toFixed(1)}Hz</span>
                             </div>
                           </div>
 
-                          {/* 오른쪽 열: 5도, 옥타브, 토닉 (조율대상 표시) */}
-                          <div className="space-y-2">
-                            <div>
-                              <div className={
-                                hitPoint.primary_target === "fifth" || hitPoint.auxiliary_target === "fifth"
-                                ? "text-red-600 dark:text-red-400 font-bold"
-                                : "text-gray-500 dark:text-gray-400"}>
-                                5도 {hitPoint.primary_target === "fifth" && hitPoint.auxiliary_target && "(주)"}
-                                {hitPoint.auxiliary_target === "fifth" && "(보조)"}
-                              </div>
-                              <div className={
-                                hitPoint.primary_target === "fifth" || hitPoint.auxiliary_target === "fifth"
-                                ? "text-red-600 dark:text-red-400 font-bold"
-                                : "text-gray-700 dark:text-gray-300"}>
-                                {hitPoint.fifth}Hz
+                          {/* 중앙 열: 조율 진단 (대상 + 의도) - 배경색으로 강조 */}
+                          <div className="flex flex-col justify-center items-center gap-4 border-r border-gray-300 dark:border-gray-700/50 px-4 bg-gray-100 dark:bg-gray-700/30">
+                            <div className="text-center">
+                              <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">최적 조율 대상</div>
+                              <div className="text-xl font-bold text-gray-900 dark:text-white tracking-tight whitespace-nowrap">
+                                {hitPoint.target_display}
                               </div>
                             </div>
-                            <div>
-                              <div className={
-                                hitPoint.primary_target === "octave" || hitPoint.auxiliary_target === "octave"
-                                ? "text-red-600 dark:text-red-400 font-bold"
-                                : "text-gray-500 dark:text-gray-400"}>
-                                옥타브 {hitPoint.primary_target === "octave" && hitPoint.auxiliary_target && "(주)"}
-                                {hitPoint.auxiliary_target === "octave" && "(보조)"}
-                              </div>
-                              <div className={
-                                hitPoint.primary_target === "octave" || hitPoint.auxiliary_target === "octave"
-                                ? "text-red-600 dark:text-red-400 font-bold"
-                                : "text-gray-700 dark:text-gray-300"}>
-                                {hitPoint.octave}Hz
-                              </div>
+
+                            <div className={`flex items-center justify-center rounded-full px-4 py-1.5 border ${
+                              hitPoint.intent === "상향"
+                                ? "bg-red-100 dark:bg-gray-800/80 border-red-500/30 dark:border-red-500/30"
+                                : "bg-blue-100 dark:bg-gray-800/80 border-blue-500/30 dark:border-blue-500/30"
+                            }`}>
+                              {/* 텍스트만 표시: 상향=붉은색, 하향=파란색 */}
+                              <span className={`font-bold text-base tracking-wide ${
+                                hitPoint.intent === "상향"
+                                  ? "text-red-600 dark:text-red-400"
+                                  : "text-blue-600 dark:text-blue-400"
+                              }`}>
+                                {hitPoint.intent}
+                              </span>
                             </div>
-                            <div>
-                              <div className={
-                                hitPoint.primary_target === "tonic" || hitPoint.auxiliary_target === "tonic"
-                                ? "text-red-600 dark:text-red-400 font-bold"
-                                : "text-gray-500 dark:text-gray-400"}>
-                                토닉 {hitPoint.primary_target === "tonic" && hitPoint.auxiliary_target && "(주)"}
-                                {hitPoint.auxiliary_target === "tonic" && "(보조)"}
-                              </div>
-                              <div className={
-                                hitPoint.primary_target === "tonic" || hitPoint.auxiliary_target === "tonic"
-                                ? "text-red-600 dark:text-red-400 font-bold"
-                                : "text-gray-700 dark:text-gray-300"}>
-                                {hitPoint.tonic}Hz
-                              </div>
+                          </div>
+
+                          {/* 오른쪽 열: 타격 지침 (세로 스택) - 수직 중앙 정렬 */}
+                          <div className="flex flex-col justify-center gap-2 pl-4 bg-gray-50 dark:bg-gray-800/50">
+                            {/* 1. 타격 위치 박스 */}
+                            <div className={`flex justify-between items-center rounded px-3 py-2 border ${
+                              hitPoint.location === "internal"
+                                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700/50"
+                                : "bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700/50"
+                            }`}>
+                              <span className="text-xs text-gray-600 dark:text-gray-400">타격 위치</span>
+                              <span className={`font-bold text-sm ${
+                                hitPoint.location === "internal"
+                                  ? "text-blue-700 dark:text-blue-300"
+                                  : "text-red-700 dark:text-red-300"
+                              }`}>
+                                {hitPoint.location === "internal" ? "내부" : "외부"}
+                              </span>
+                            </div>
+
+                            {/* 2. 좌표 박스 (참조 데이터) - 줄바꿈 방지 */}
+                            <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/20 rounded px-2.5 py-1.5 border border-gray-300 dark:border-gray-600/30 overflow-hidden min-w-0">
+                              {/* 라벨: 아이콘만 사용 */}
+                              <span className="text-gray-400 dark:text-gray-500 text-[10px] mr-1 flex-shrink-0">⌖</span>
+                              {/* 값: 줄바꿈 금지 + 자간 축소 */}
+                              <span className="text-[10px] font-mono text-gray-600 dark:text-gray-400 tracking-tighter whitespace-nowrap flex-shrink-0">
+                                {hitPoint.coordinate_x.toFixed(3)}, {hitPoint.coordinate_y.toFixed(3)}
+                              </span>
+                            </div>
+
+                            {/* 3. 강도×타수 박스 */}
+                            <div className="flex justify-between items-center bg-gray-100 dark:bg-gray-700/40 border border-gray-300 dark:border-gray-600/50 rounded px-3 py-2">
+                              <span className="text-xs text-gray-600 dark:text-gray-400">강도 × 타수</span>
+                              <span className="font-bold text-sm text-gray-900 dark:text-white tracking-wide">
+                                {hitPoint.strength >= 0 ? '+' : ''}{hitPoint.strength} × {hitPoint.hit_count}
+                              </span>
                             </div>
                           </div>
                         </div>
