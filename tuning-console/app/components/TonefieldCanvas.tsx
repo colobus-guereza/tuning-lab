@@ -26,6 +26,8 @@ interface TonefieldCanvasProps {
   hitPointCoord?: { x: number; y: number } | null;
   hitPointLocation?: "internal" | "external" | null;
   selectedHitPoint?: HitPointData | null;
+  calculatedForce?: number | null;
+  calculatedCount?: number | null;
 }
 
 export default function TonefieldCanvas({
@@ -34,6 +36,8 @@ export default function TonefieldCanvas({
   hitPointCoord,
   hitPointLocation,
   selectedHitPoint,
+  calculatedForce,
+  calculatedCount,
 }: TonefieldCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -264,6 +268,37 @@ export default function TonefieldCanvas({
       ctx.strokeStyle = markerOutlineColor;
       ctx.lineWidth = 2;
       ctx.stroke();
+
+      // Draw calculated force × count label if available
+      if (calculatedForce !== null && calculatedCount !== null) {
+        const labelText = `${calculatedForce} × ${calculatedCount}`;
+
+        // Position label to the right-top of the marker
+        const labelX = canvasX + 15;
+        const labelY = canvasY - 5;
+
+        // Draw semi-transparent background for better readability
+        ctx.font = "12px Arial";
+        const textMetrics = ctx.measureText(labelText);
+        const padding = 4;
+        const bgWidth = textMetrics.width + padding * 2;
+        const bgHeight = 16;
+
+        ctx.fillStyle = isDark ? "rgba(31, 41, 55, 0.85)" : "rgba(255, 255, 255, 0.85)"; // gray-800 : white
+        ctx.fillRect(labelX - padding, labelY - bgHeight + padding, bgWidth, bgHeight);
+
+        // Draw border
+        ctx.strokeStyle = isDark ? "#4b5563" : "#d1d5db"; // gray-600 : gray-300
+        ctx.lineWidth = 1;
+        ctx.strokeRect(labelX - padding, labelY - bgHeight + padding, bgWidth, bgHeight);
+
+        // Draw text
+        ctx.fillStyle = isDark ? "#f3f4f6" : "#374151"; // gray-100 : gray-700
+        ctx.font = "bold 12px Arial";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        ctx.fillText(labelText, labelX, labelY - bgHeight + padding + 2);
+      }
     }
 
     // Draw selected hit point from recent list with animation

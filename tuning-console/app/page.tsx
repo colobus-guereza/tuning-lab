@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import TonefieldCanvas from "./components/TonefieldCanvas";
 import { supabase, HitPointData } from "@/lib/supabase";
+import { calculateImpactPower } from "@/lib/TuningPhysicsConfig";
 
 export default function HomePage() {
   const [tonic, setTonic] = useState<string>("0");
@@ -21,6 +22,8 @@ export default function HomePage() {
     x: number;
     y: number;
   } | null>(null);
+  const [calculatedForce, setCalculatedForce] = useState<number | null>(null);
+  const [calculatedCount, setCalculatedCount] = useState<number | null>(null);
   const [hitPointStrength, setHitPointStrength] = useState<string>("");
   const [hitPointHitCount, setHitPointHitCount] = useState<string>("");
   const [hitPointLocation, setHitPointLocation] = useState<"external" | "internal" | null>("internal");
@@ -248,12 +251,24 @@ export default function HomePage() {
 
     const targetDisplay = aText ? `${pText} (+${aText})` : pText;
 
+    // 7단계: 최적 강도 및 타수 자동 계산
+    // 주 조율 대상의 원본 오차값(절대값)과 계산된 좌표를 사용
+    const primaryErrorValue = primary.type === 'tonic' ? eT
+                             : primary.type === 'octave' ? eO
+                             : eF;
+    const impactResult = calculateImpactPower(primaryErrorValue, { x, y }, primaryTarget);
+
     // 상태 설정
     setHitPointPrimaryTarget(primaryTarget);
     setHitPointAuxiliaryTarget(auxiliaryTarget);
     setHitPointIsCompound(isCompound);
     setHitPointTargetDisplay(targetDisplay);
     setHitPointCoord({ x, y });
+    setCalculatedForce(impactResult.force);
+    setCalculatedCount(impactResult.count);
+    // 타점 파라미터 입력 필드에도 자동 입력
+    setHitPointStrength(impactResult.force.toString());
+    setHitPointHitCount(impactResult.count.toString());
   }, [tuningTarget, tonic, octave, fifth]);
 
   // 카드 바깥 클릭 시 카드 접기
@@ -344,6 +359,8 @@ export default function HomePage() {
         setOctave("0");
         setFifth("0");
         setHitPointCoord(null);
+        setCalculatedForce(null);
+        setCalculatedCount(null);
         setHitPointStrength("");
         setHitPointHitCount("");
         setHitPointLocation("internal");
@@ -854,6 +871,8 @@ export default function HomePage() {
             hitPointCoord={hitPointCoord}
             hitPointLocation={hitPointLocation}
             selectedHitPoint={selectedHitPoint}
+            calculatedForce={calculatedForce}
+            calculatedCount={calculatedCount}
           />
 
           {/* Reset button below canvas */}
