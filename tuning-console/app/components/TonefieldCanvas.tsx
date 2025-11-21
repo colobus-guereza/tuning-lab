@@ -275,29 +275,29 @@ export default function TonefieldCanvas({
 
         // Position label to the right-top of the marker
         const labelX = canvasX + 15;
-        const labelY = canvasY - 5;
+        const labelY = canvasY - 8;
 
         // Draw semi-transparent background for better readability
-        ctx.font = "12px Arial";
+        ctx.font = "bold 18px Arial";
         const textMetrics = ctx.measureText(labelText);
-        const padding = 4;
+        const padding = 6;
         const bgWidth = textMetrics.width + padding * 2;
-        const bgHeight = 16;
+        const bgHeight = 24;
 
-        ctx.fillStyle = isDark ? "rgba(31, 41, 55, 0.85)" : "rgba(255, 255, 255, 0.85)"; // gray-800 : white
+        ctx.fillStyle = isDark ? "rgba(31, 41, 55, 0.9)" : "rgba(255, 255, 255, 0.9)"; // gray-800 : white
         ctx.fillRect(labelX - padding, labelY - bgHeight + padding, bgWidth, bgHeight);
 
         // Draw border
-        ctx.strokeStyle = isDark ? "#4b5563" : "#d1d5db"; // gray-600 : gray-300
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = isDark ? "#6b7280" : "#9ca3af"; // gray-500 : gray-400
+        ctx.lineWidth = 1.5;
         ctx.strokeRect(labelX - padding, labelY - bgHeight + padding, bgWidth, bgHeight);
 
         // Draw text
-        ctx.fillStyle = isDark ? "#f3f4f6" : "#374151"; // gray-100 : gray-700
-        ctx.font = "bold 12px Arial";
+        ctx.fillStyle = isDark ? "#f9fafb" : "#1f2937"; // gray-50 : gray-800
+        ctx.font = "bold 18px Arial";
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
-        ctx.fillText(labelText, labelX, labelY - bgHeight + padding + 2);
+        ctx.fillText(labelText, labelX, labelY - bgHeight + padding + 3);
       }
     }
 
