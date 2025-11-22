@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import TonefieldCanvas from "./components/TonefieldCanvas";
+import TonefieldCanvas, { TonefieldCanvasHandle } from "./components/TonefieldCanvas";
 import { supabase, HitPointData } from "@/lib/supabase";
 import { calculateImpactPower } from "@/lib/TuningPhysicsConfig";
 
@@ -37,7 +37,30 @@ export default function HomePage() {
   const [selectedHitPoint, setSelectedHitPoint] = useState<HitPointData | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [isLoadingHitPoints, setIsLoadingHitPoints] = useState<boolean>(true);
+  const [isCopied, setIsCopied] = useState(false);
   const cardsContainerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<TonefieldCanvasHandle>(null);
+
+  const handleCapture = async () => {
+    if (canvasRef.current) {
+      const dataUrl = canvasRef.current.capture();
+      if (dataUrl) {
+        try {
+          const blob = await (await fetch(dataUrl)).blob();
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              [blob.type]: blob,
+            }),
+          ]);
+          setIsCopied(true);
+          setTimeout(() => setIsCopied(false), 2000);
+        } catch (err) {
+          console.error("클립보드 복사 실패:", err);
+          alert("클립보드 복사에 실패했습니다.");
+        }
+      }
+    }
+  };
 
   // 최근 타점 데이터 불러오기
   const fetchRecentHitPoints = async () => {
@@ -579,12 +602,12 @@ export default function HomePage() {
           <div className="space-y-2 sm:space-y-3">
             <div className="flex items-center gap-2 sm:gap-3">
               <label className={`text-sm sm:text-base font-semibold min-w-[50px] sm:min-w-[70px] flex items-center gap-1 transition-all ${tuningTarget === "fifth"
-                  ? "text-red-600 dark:text-red-400"
-                  : cooperativeField === "fifth"
-                    ? "text-red-500/70 dark:text-red-400/70"
-                    : excludedFields.includes("fifth")
-                      ? "text-gray-500 dark:text-gray-500"
-                      : "text-gray-700 dark:text-gray-300"
+                ? "text-red-600 dark:text-red-400"
+                : cooperativeField === "fifth"
+                  ? "text-red-500/70 dark:text-red-400/70"
+                  : excludedFields.includes("fifth")
+                    ? "text-gray-500 dark:text-gray-500"
+                    : "text-gray-700 dark:text-gray-300"
                 }`}>
                 5도 (Hz)
               </label>
@@ -601,24 +624,24 @@ export default function HomePage() {
                 }}
                 disabled={excludedFields.includes("fifth")}
                 className={`flex-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${tuningTarget === "fifth"
-                    ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
-                    : cooperativeField === "fifth"
-                      ? "border-red-500/50 dark:border-red-400/50 bg-red-50/50 dark:bg-red-900/10 text-red-900/70 dark:text-red-100/70 focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
-                      : excludedFields.includes("fifth")
-                        ? "border-gray-300/60 dark:border-gray-700/60 bg-gray-100/50 dark:bg-gray-800/30 text-gray-500 dark:text-gray-500 opacity-70 cursor-not-allowed"
-                        : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                  ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
+                  : cooperativeField === "fifth"
+                    ? "border-red-500/50 dark:border-red-400/50 bg-red-50/50 dark:bg-red-900/10 text-red-900/70 dark:text-red-100/70 focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
+                    : excludedFields.includes("fifth")
+                      ? "border-gray-300/60 dark:border-gray-700/60 bg-gray-100/50 dark:bg-gray-800/30 text-gray-500 dark:text-gray-500 opacity-70 cursor-not-allowed"
+                      : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                   }`}
               />
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
               <label className={`text-sm sm:text-base font-semibold min-w-[50px] sm:min-w-[70px] flex items-center gap-1 transition-all ${tuningTarget === "octave"
-                  ? "text-red-600 dark:text-red-400"
-                  : cooperativeField === "octave"
-                    ? "text-red-500/70 dark:text-red-400/70"
-                    : excludedFields.includes("octave")
-                      ? "text-gray-500 dark:text-gray-500"
-                      : "text-gray-700 dark:text-gray-300"
+                ? "text-red-600 dark:text-red-400"
+                : cooperativeField === "octave"
+                  ? "text-red-500/70 dark:text-red-400/70"
+                  : excludedFields.includes("octave")
+                    ? "text-gray-500 dark:text-gray-500"
+                    : "text-gray-700 dark:text-gray-300"
                 }`}>
                 옥타브 (Hz)
               </label>
@@ -635,24 +658,24 @@ export default function HomePage() {
                 }}
                 disabled={excludedFields.includes("octave")}
                 className={`flex-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${tuningTarget === "octave"
-                    ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
-                    : cooperativeField === "octave"
-                      ? "border-red-500/50 dark:border-red-400/50 bg-red-50/50 dark:bg-red-900/10 text-red-900/70 dark:text-red-100/70 focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
-                      : excludedFields.includes("octave")
-                        ? "border-gray-300/60 dark:border-gray-700/60 bg-gray-100/50 dark:bg-gray-800/30 text-gray-500 dark:text-gray-500 opacity-70 cursor-not-allowed"
-                        : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                  ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
+                  : cooperativeField === "octave"
+                    ? "border-red-500/50 dark:border-red-400/50 bg-red-50/50 dark:bg-red-900/10 text-red-900/70 dark:text-red-100/70 focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
+                    : excludedFields.includes("octave")
+                      ? "border-gray-300/60 dark:border-gray-700/60 bg-gray-100/50 dark:bg-gray-800/30 text-gray-500 dark:text-gray-500 opacity-70 cursor-not-allowed"
+                      : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                   }`}
               />
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
               <label className={`text-sm sm:text-base font-semibold min-w-[50px] sm:min-w-[70px] flex items-center gap-1 transition-all ${tuningTarget === "tonic"
-                  ? "text-red-600 dark:text-red-400"
-                  : cooperativeField === "tonic"
-                    ? "text-red-500/70 dark:text-red-400/70"
-                    : excludedFields.includes("tonic")
-                      ? "text-gray-500 dark:text-gray-500"
-                      : "text-gray-700 dark:text-gray-300"
+                ? "text-red-600 dark:text-red-400"
+                : cooperativeField === "tonic"
+                  ? "text-red-500/70 dark:text-red-400/70"
+                  : excludedFields.includes("tonic")
+                    ? "text-gray-500 dark:text-gray-500"
+                    : "text-gray-700 dark:text-gray-300"
                 }`}>
                 토닉 (Hz)
               </label>
@@ -669,12 +692,12 @@ export default function HomePage() {
                 }}
                 disabled={excludedFields.includes("tonic")}
                 className={`flex-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${tuningTarget === "tonic"
-                    ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
-                    : cooperativeField === "tonic"
-                      ? "border-red-500/50 dark:border-red-400/50 bg-red-50/50 dark:bg-red-900/10 text-red-900/70 dark:text-red-100/70 focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
-                      : excludedFields.includes("tonic")
-                        ? "border-gray-300/60 dark:border-gray-700/60 bg-gray-100/50 dark:bg-gray-800/30 text-gray-500 dark:text-gray-500 opacity-70 cursor-not-allowed"
-                        : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+                  ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
+                  : cooperativeField === "tonic"
+                    ? "border-red-500/50 dark:border-red-400/50 bg-red-50/50 dark:bg-red-900/10 text-red-900/70 dark:text-red-100/70 focus:ring-2 focus:ring-red-500/50 dark:focus:ring-red-400/50"
+                    : excludedFields.includes("tonic")
+                      ? "border-gray-300/60 dark:border-gray-700/60 bg-gray-100/50 dark:bg-gray-800/30 text-gray-500 dark:text-gray-500 opacity-70 cursor-not-allowed"
+                      : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                   }`}
               />
             </div>
@@ -682,8 +705,8 @@ export default function HomePage() {
 
           {/* Hit Point Input Fields */}
           <div className={`mt-3 sm:mt-5 p-2.5 sm:p-3.5 border rounded-lg space-y-2 sm:space-y-2.5 transition-all ${isSaveEnabled
-              ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 opacity-100"
-              : "bg-gray-50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600 opacity-60"
+            ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 opacity-100"
+            : "bg-gray-50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600 opacity-60"
             }`}>
             <h3 className="font-semibold text-sm sm:text-base text-blue-900 dark:text-blue-300 mb-1.5 sm:mb-2.5">
               타점 파라미터
@@ -748,8 +771,8 @@ export default function HomePage() {
                   type="button"
                   onClick={() => setHitPointLocation("internal")}
                   className={`flex-1 py-1.5 px-3 rounded-lg font-medium transition-colors ${hitPointLocation === "internal"
-                      ? "bg-red-600 text-white dark:bg-red-600 hover:bg-red-700 dark:hover:bg-red-700"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                    ? "bg-blue-600 text-white dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-700"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                     }`}
                 >
                   내부
@@ -758,8 +781,8 @@ export default function HomePage() {
                   type="button"
                   onClick={() => setHitPointLocation("external")}
                   className={`flex-1 py-1.5 px-3 rounded-lg font-medium transition-colors ${hitPointLocation === "external"
-                      ? "bg-blue-600 text-white dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-700"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                    ? "bg-red-600 text-white dark:bg-red-600 hover:bg-red-700 dark:hover:bg-red-700"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                     }`}
                 >
                   외부
@@ -861,8 +884,8 @@ export default function HomePage() {
               onClick={handleSaveHitPoint}
               disabled={!isSaveEnabled}
               className={`w-full py-2 sm:py-2.5 px-3 sm:px-5 rounded-lg font-semibold text-sm transition-colors ${isSaveEnabled
-                  ? "bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white"
-                  : "bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                ? "bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white"
+                : "bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                 }`}
             >
               타점 입력
@@ -953,7 +976,31 @@ export default function HomePage() {
             intent={hitPointIntent}
             strength={calculatedForce || parseFloat(hitPointStrength) || undefined}
             hitCount={calculatedCount || parseInt(hitPointHitCount) || undefined}
+            ref={canvasRef}
           />
+
+          {/* Capture Button */}
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={handleCapture}
+              className={`p-2.5 rounded-full transition-all duration-300 shadow-sm border ${isCopied
+                  ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-300 dark:border-green-700 scale-110"
+                  : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600"
+                }`}
+              title={isCopied ? "복사 완료!" : "현재 톤필드 화면 복사"}
+            >
+              {isCopied ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              )}
+            </button>
+          </div>
 
           {/* Reset button below canvas */}
           {selectedCoords.length > 0 && (
@@ -1017,8 +1064,8 @@ export default function HomePage() {
                     key={hitPoint.id}
                     onClick={() => handleHitPointCardClick(hitPoint)}
                     className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${isSelected
-                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                        : "border-gray-300 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-700 bg-white dark:bg-gray-700"
+                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                      : "border-gray-300 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-700 bg-white dark:bg-gray-700"
                       }`}
                   >
                     {isExpanded ? (
@@ -1033,13 +1080,13 @@ export default function HomePage() {
                           <div className="flex flex-col justify-center gap-3 border-r border-gray-300 dark:border-gray-700/50 pr-4 bg-gray-50 dark:bg-gray-800/50">
                             {/* 5도 (상단) */}
                             <div className={`flex justify-between items-center ${hitPoint.primary_target === "fifth" || hitPoint.auxiliary_target === "fifth"
-                                ? ""
-                                : "opacity-40"
+                              ? ""
+                              : "opacity-40"
                               }`}>
                               <div className="flex items-center gap-1.5">
                                 <span className={`text-xs ${hitPoint.primary_target === "fifth" || hitPoint.auxiliary_target === "fifth"
-                                    ? "text-red-600 dark:text-red-400 font-semibold"
-                                    : "text-gray-500 dark:text-gray-500"
+                                  ? "text-red-600 dark:text-red-400 font-semibold"
+                                  : "text-gray-500 dark:text-gray-500"
                                   }`}>5도</span>
                                 {hitPoint.primary_target === "fifth" && (
                                   <span className="text-[9px] font-semibold bg-red-600 text-white px-1.5 py-px rounded-sm">주</span>
@@ -1049,22 +1096,22 @@ export default function HomePage() {
                                 )}
                               </div>
                               <span className={`font-mono text-sm ${hitPoint.primary_target === "fifth"
-                                  ? "text-red-600 dark:text-red-400 font-bold"
-                                  : hitPoint.auxiliary_target === "fifth"
-                                    ? "text-orange-600 dark:text-orange-400 font-medium"
-                                    : "text-gray-500 dark:text-gray-500"
+                                ? "text-red-600 dark:text-red-400 font-bold"
+                                : hitPoint.auxiliary_target === "fifth"
+                                  ? "text-orange-600 dark:text-orange-400 font-medium"
+                                  : "text-gray-500 dark:text-gray-500"
                                 }`}>{hitPoint.fifth >= 0 ? '+' : ''}{Number(hitPoint.fifth).toFixed(1)}Hz</span>
                             </div>
 
                             {/* 옥타브 (중간) */}
                             <div className={`flex justify-between items-center ${hitPoint.primary_target === "octave" || hitPoint.auxiliary_target === "octave"
-                                ? ""
-                                : "opacity-40"
+                              ? ""
+                              : "opacity-40"
                               }`}>
                               <div className="flex items-center gap-1.5">
                                 <span className={`text-xs ${hitPoint.primary_target === "octave" || hitPoint.auxiliary_target === "octave"
-                                    ? "text-red-600 dark:text-red-400 font-semibold"
-                                    : "text-gray-500 dark:text-gray-500"
+                                  ? "text-red-600 dark:text-red-400 font-semibold"
+                                  : "text-gray-500 dark:text-gray-500"
                                   }`}>옥타브</span>
                                 {hitPoint.primary_target === "octave" && (
                                   <span className="text-[9px] font-semibold bg-red-600 text-white px-1.5 py-px rounded-sm">주</span>
@@ -1074,22 +1121,22 @@ export default function HomePage() {
                                 )}
                               </div>
                               <span className={`font-mono text-sm ${hitPoint.primary_target === "octave"
-                                  ? "text-red-600 dark:text-red-400 font-bold"
-                                  : hitPoint.auxiliary_target === "octave"
-                                    ? "text-orange-600 dark:text-orange-400 font-medium"
-                                    : "text-gray-500 dark:text-gray-500"
+                                ? "text-red-600 dark:text-red-400 font-bold"
+                                : hitPoint.auxiliary_target === "octave"
+                                  ? "text-orange-600 dark:text-orange-400 font-medium"
+                                  : "text-gray-500 dark:text-gray-500"
                                 }`}>{hitPoint.octave >= 0 ? '+' : ''}{Number(hitPoint.octave).toFixed(1)}Hz</span>
                             </div>
 
                             {/* 토닉 (하단) */}
                             <div className={`flex justify-between items-center ${hitPoint.primary_target === "tonic" || hitPoint.auxiliary_target === "tonic"
-                                ? ""
-                                : "opacity-40"
+                              ? ""
+                              : "opacity-40"
                               }`}>
                               <div className="flex items-center gap-1.5">
                                 <span className={`text-xs font-bold ${hitPoint.primary_target === "tonic" || hitPoint.auxiliary_target === "tonic"
-                                    ? "text-red-600 dark:text-red-400"
-                                    : "text-gray-500 dark:text-gray-500"
+                                  ? "text-red-600 dark:text-red-400"
+                                  : "text-gray-500 dark:text-gray-500"
                                   }`}>토닉</span>
                                 {hitPoint.primary_target === "tonic" && (
                                   <span className="text-[9px] font-semibold bg-red-600 text-white px-1.5 py-px rounded-sm">주</span>
@@ -1099,10 +1146,10 @@ export default function HomePage() {
                                 )}
                               </div>
                               <span className={`font-mono ${hitPoint.primary_target === "tonic"
-                                  ? "text-red-600 dark:text-red-400 font-bold text-base"
-                                  : hitPoint.auxiliary_target === "tonic"
-                                    ? "text-orange-600 dark:text-orange-400 font-medium text-base"
-                                    : "text-gray-500 dark:text-gray-500 text-sm"
+                                ? "text-red-600 dark:text-red-400 font-bold text-base"
+                                : hitPoint.auxiliary_target === "tonic"
+                                  ? "text-orange-600 dark:text-orange-400 font-medium text-base"
+                                  : "text-gray-500 dark:text-gray-500 text-sm"
                                 }`}>{hitPoint.tonic >= 0 ? '+' : ''}{Number(hitPoint.tonic).toFixed(1)}Hz</span>
                             </div>
                           </div>
@@ -1117,13 +1164,13 @@ export default function HomePage() {
                             </div>
 
                             <div className={`flex items-center justify-center rounded-full px-4 py-1.5 border ${hitPoint.intent === "상향"
-                                ? "bg-red-100 dark:bg-gray-800/80 border-red-500/30 dark:border-red-500/30"
-                                : "bg-blue-100 dark:bg-gray-800/80 border-blue-500/30 dark:border-blue-500/30"
+                              ? "bg-red-100 dark:bg-gray-800/80 border-red-500/30 dark:border-red-500/30"
+                              : "bg-blue-100 dark:bg-gray-800/80 border-blue-500/30 dark:border-blue-500/30"
                               }`}>
                               {/* 텍스트만 표시: 상향=붉은색, 하향=파란색 */}
                               <span className={`font-bold text-base tracking-wide ${hitPoint.intent === "상향"
-                                  ? "text-red-600 dark:text-red-400"
-                                  : "text-blue-600 dark:text-blue-400"
+                                ? "text-red-600 dark:text-red-400"
+                                : "text-blue-600 dark:text-blue-400"
                                 }`}>
                                 {hitPoint.intent}
                               </span>
@@ -1134,13 +1181,13 @@ export default function HomePage() {
                           <div className="flex flex-col justify-center gap-2 pl-4 bg-gray-50 dark:bg-gray-800/50">
                             {/* 1. 타격 위치 박스 */}
                             <div className={`flex justify-between items-center rounded px-3 py-2 border ${hitPoint.location === "internal"
-                                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700/50"
-                                : "bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700/50"
+                              ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700/50"
+                              : "bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700/50"
                               }`}>
                               <span className="text-xs text-gray-600 dark:text-gray-400">타격 위치</span>
                               <span className={`font-bold text-sm ${hitPoint.location === "internal"
-                                  ? "text-blue-700 dark:text-blue-300"
-                                  : "text-red-700 dark:text-red-300"
+                                ? "text-blue-700 dark:text-blue-300"
+                                : "text-red-700 dark:text-red-300"
                                 }`}>
                                 {hitPoint.location === "internal" ? "내부" : "외부"}
                               </span>
@@ -1207,7 +1254,7 @@ export default function HomePage() {
                         {/* 삭제 버튼 */}
                         <button
                           onClick={(e) => handleDeleteHitPoint(e, hitPoint.id!)}
-                          className="ml-auto px-3 py-1 text-sm font-medium text-red-600 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-500 rounded transition-colors border border-red-600 dark:border-red-400"
+                          className="ml-auto px-3 py-1 text-sm font-medium text-red-600/50 dark:text-red-400/50 hover:text-white hover:bg-red-600 dark:hover:bg-red-500 rounded transition-colors border border-red-600/30 dark:border-red-400/30 opacity-30 hover:opacity-100"
                           title="삭제"
                         >
                           삭제

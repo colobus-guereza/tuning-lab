@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 
 interface HitPointData {
   id?: string;
@@ -42,7 +42,11 @@ interface TonefieldCanvasProps {
   hitCount?: number;
 }
 
-export default function TonefieldCanvas({
+export interface TonefieldCanvasHandle {
+  capture: () => string | null;
+}
+
+const TonefieldCanvas = forwardRef<TonefieldCanvasHandle, TonefieldCanvasProps>(({
   selectedCoords,
   onCoordClick,
   hitPointCoord,
@@ -60,10 +64,19 @@ export default function TonefieldCanvas({
   intent,
   strength,
   hitCount,
-}: TonefieldCanvasProps) {
+}, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
   const animationStartRef = useRef<number>(0);
+
+  useImperativeHandle(ref, () => ({
+    capture: () => {
+      if (canvasRef.current) {
+        return canvasRef.current.toDataURL("image/png");
+      }
+      return null;
+    }
+  }));
 
   const CANVAS_SIZE = 600;
   const PADDING = 50;
@@ -266,7 +279,7 @@ export default function TonefieldCanvas({
 
       // Draw coordinate label with same style as force × count label
       const labelText = `(${coord.x.toFixed(3)}, ${coord.y.toFixed(3)})`;
-      
+
       // Position label to the right-top of the marker
       const labelX = canvasX + 15;
       const labelY = canvasY - 8;
@@ -299,24 +312,44 @@ export default function TonefieldCanvas({
       const canvasX = coordToCanvas(hitPointCoord.x, "x");
       const canvasY = coordToCanvas(hitPointCoord.y, "y");
 
-      // Location-based colors: internal = red (상향), external = blue (하향)
-      const markerColor = hitPointLocation === "internal" ? "#dc2626" : "#2563eb"; // internal=red-600 : external=blue-600
-      const markerOutlineColor = hitPointLocation === "internal" ? "#b91c1c" : "#1d4ed8"; // internal=red-700 : external=blue-700
+      // Location-based colors: internal = blue, external = red
+      const markerColor = hitPointLocation === "internal" ? "#2563eb" : "#dc2626"; // internal=blue-600 : external=red-600
 
-      // Draw circle with outline
+      // Ring colors (Inverted): internal = red, external = blue
+      const ringColor = hitPointLocation === "internal" ? "#dc2626" : "#2563eb";
+
+      // Calculate animation progress (same as selectedHitPoint)
+      const elapsed = Date.now() - animationStartRef.current;
+      const duration = 2000; // 2 seconds for one full cycle
+      const progress = (elapsed % duration) / duration;
+
+      // Pulse animation for the ring
+      const pulseScale = 1 + Math.sin(progress * Math.PI * 2) * 0.3; // oscillate between 0.7 and 1.3
+      const pulseOpacity = 0.6 + Math.sin(progress * Math.PI * 2) * 0.4; // oscillate between 0.2 and 1.0
+
+      // Draw animated outer ring
+      ctx.strokeStyle = `${ringColor}${Math.floor(pulseOpacity * 255).toString(16).padStart(2, '0')}`;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(canvasX, canvasY, 14 * pulseScale, 0, 2 * Math.PI);
+      ctx.stroke();
+
+      // Draw middle ring (pulsing)
+      ctx.strokeStyle = `rgba(${hitPointLocation === "internal" ? "220, 38, 38" : "37, 99, 235"}, ${pulseOpacity})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(canvasX, canvasY, 10 * pulseScale, 0, 2 * Math.PI);
+      ctx.stroke();
+
+      // Draw solid inner circle
       ctx.fillStyle = markerColor;
       ctx.beginPath();
       ctx.arc(canvasX, canvasY, 7, 0, 2 * Math.PI);
       ctx.fill();
 
-      // Add outline for better visibility
-      ctx.strokeStyle = markerOutlineColor;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
       // Draw label: force × count if available, otherwise coordinate
       let labelText: string;
-      
+
       if (calculatedForce !== null && calculatedCount !== null) {
         // Korean translation mapping
         const hammeringTypeMap: Record<"SNAP" | "PULL" | "PRESS", string> = {
@@ -378,11 +411,12 @@ export default function TonefieldCanvas({
       // Get color based on strength (heat map)
       const strengthColor = getStrengthColor(selectedHitPoint.strength);
 
-      // Location-based colors for outer ring: internal = red (상향), external = blue (하향)
-      const locationColor = selectedHitPoint.location === "internal" ? "#dc2626" : "#2563eb"; // internal=red-600 : external=blue-600
+      // Location-based colors for outer ring: internal = red (inverted), external = blue (inverted)
+      // Original location color: internal=blue, external=red
+      const ringColor = selectedHitPoint.location === "internal" ? "#dc2626" : "#2563eb"; // internal=red-600 : external=blue-600
 
       // Draw animated outer ring with location-based color
-      ctx.strokeStyle = `${locationColor}${Math.floor(pulseOpacity * 255).toString(16).padStart(2, '0')}`;
+      ctx.strokeStyle = `${ringColor}${Math.floor(pulseOpacity * 255).toString(16).padStart(2, '0')}`;
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.arc(canvasX, canvasY, 14 * pulseScale, 0, 2 * Math.PI);
@@ -407,6 +441,45 @@ export default function TonefieldCanvas({
       const primaryColor = "#dc2626"; // red-600 for 주 (primary)
       const auxiliaryColor = "#ea580c"; // orange-600 for 보조 (auxiliary)
 
+      // Hammering type map (used for both label and quadrant display)
+      const hammeringTypeMap: Record<"SNAP" | "PULL" | "PRESS", string> = {
+        SNAP: "튕겨치기",
+        PULL: "당겨치기",
+        PRESS: "눌러치기"
+      };
+      const hammeringText = selectedHitPoint.hammering_type
+        ? ` (${hammeringTypeMap[selectedHitPoint.hammering_type]})`
+        : "";
+
+      // Draw strength × count label above the marker (same style as hitPointCoord)
+      const labelText = `${selectedHitPoint.strength >= 0 ? '+' : ''}${selectedHitPoint.strength} × ${selectedHitPoint.hit_count}${hammeringText}`;
+
+      // Position label to the right-top of the marker
+      const labelX = canvasX + 15;
+      const labelY = canvasY - 8;
+
+      // Draw semi-transparent background for better readability
+      ctx.font = "bold 16px Arial";
+      const textMetrics = ctx.measureText(labelText);
+      const padding = 6;
+      const bgWidth = textMetrics.width + padding * 2;
+      const bgHeight = 24;
+
+      ctx.fillStyle = isDark ? "rgba(31, 41, 55, 0.9)" : "rgba(255, 255, 255, 0.9)"; // gray-800 : white
+      ctx.fillRect(labelX - padding, labelY - bgHeight + padding, bgWidth, bgHeight);
+
+      // Draw border
+      ctx.strokeStyle = isDark ? "#6b7280" : "#9ca3af"; // gray-500 : gray-400
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(labelX - padding, labelY - bgHeight + padding, bgWidth, bgHeight);
+
+      // Draw text
+      ctx.fillStyle = isDark ? "#f9fafb" : "#1f2937"; // gray-50 : gray-800
+      ctx.font = "bold 16px Arial";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText(labelText, labelX, labelY - bgHeight + padding + 3);
+
       // 1st Quadrant (Top-Left): Tuning Errors (top to bottom: 5도, 옥타브, 토닉)
       ctx.font = "14px Arial";
       ctx.textAlign = "left";
@@ -417,8 +490,8 @@ export default function TonefieldCanvas({
       const fifthColor = selectedHitPoint.primary_target === "fifth"
         ? primaryColor
         : selectedHitPoint.auxiliary_target === "fifth"
-        ? auxiliaryColor
-        : textColor;
+          ? auxiliaryColor
+          : textColor;
       const fifthFont = (selectedHitPoint.primary_target === "fifth" || selectedHitPoint.auxiliary_target === "fifth")
         ? "bold 14px Arial"
         : "14px Arial";
@@ -431,8 +504,8 @@ export default function TonefieldCanvas({
       const octaveColor = selectedHitPoint.primary_target === "octave"
         ? primaryColor
         : selectedHitPoint.auxiliary_target === "octave"
-        ? auxiliaryColor
-        : textColor;
+          ? auxiliaryColor
+          : textColor;
       const octaveFont = (selectedHitPoint.primary_target === "octave" || selectedHitPoint.auxiliary_target === "octave")
         ? "bold 14px Arial"
         : "14px Arial";
@@ -445,8 +518,8 @@ export default function TonefieldCanvas({
       const tonicColor = selectedHitPoint.primary_target === "tonic"
         ? primaryColor
         : selectedHitPoint.auxiliary_target === "tonic"
-        ? auxiliaryColor
-        : textColor;
+          ? auxiliaryColor
+          : textColor;
       const tonicFont = (selectedHitPoint.primary_target === "tonic" || selectedHitPoint.auxiliary_target === "tonic")
         ? "bold 14px Arial"
         : "14px Arial";
@@ -458,9 +531,9 @@ export default function TonefieldCanvas({
       // Tuning target and intent (4th line)
       // Use target_display if available (for compound targets), otherwise fall back to tuning_target
       const targetText = selectedHitPoint.target_display
-                       || (selectedHitPoint.tuning_target === "tonic" ? "토닉"
-                         : selectedHitPoint.tuning_target === "octave" ? "옥타브"
-                         : "5도");
+        || (selectedHitPoint.tuning_target === "tonic" ? "토닉"
+          : selectedHitPoint.tuning_target === "octave" ? "옥타브"
+            : "5도");
       ctx.fillStyle = textColor;
       ctx.font = "13px Arial";
       ctx.fillText(`${targetText} ${selectedHitPoint.intent}`, PADDING + 10, yPos);
@@ -476,15 +549,7 @@ export default function TonefieldCanvas({
       ctx.fillText(`(${selectedHitPoint.coordinate_x.toFixed(2)}, ${selectedHitPoint.coordinate_y.toFixed(2)})`, CANVAS_SIZE - PADDING - 10, yPos);
       yPos += 18;
 
-      // Add hammering type to strength × count display
-      const hammeringTypeMap: Record<"SNAP" | "PULL" | "PRESS", string> = {
-        SNAP: "튕겨치기",
-        PULL: "당겨치기",
-        PRESS: "눌러치기"
-      };
-      const hammeringText = selectedHitPoint.hammering_type
-        ? ` (${hammeringTypeMap[selectedHitPoint.hammering_type]})`
-        : "";
+      // Add hammering type to strength × count display (reuse hammeringText defined above)
       ctx.fillText(`${selectedHitPoint.strength >= 0 ? '+' : ''}${selectedHitPoint.strength} × ${selectedHitPoint.hit_count}${hammeringText}`, CANVAS_SIZE - PADDING - 10, yPos);
 
     }
@@ -509,8 +574,8 @@ export default function TonefieldCanvas({
       const fifthColor = primaryTarget === "fifth"
         ? primaryColor
         : auxiliaryTarget === "fifth"
-        ? auxiliaryColor
-        : textColor;
+          ? auxiliaryColor
+          : textColor;
       const fifthFont = (primaryTarget === "fifth" || auxiliaryTarget === "fifth")
         ? "bold 14px Arial"
         : "14px Arial";
@@ -523,8 +588,8 @@ export default function TonefieldCanvas({
       const octaveColor = primaryTarget === "octave"
         ? primaryColor
         : auxiliaryTarget === "octave"
-        ? auxiliaryColor
-        : textColor;
+          ? auxiliaryColor
+          : textColor;
       const octaveFont = (primaryTarget === "octave" || auxiliaryTarget === "octave")
         ? "bold 14px Arial"
         : "14px Arial";
@@ -537,8 +602,8 @@ export default function TonefieldCanvas({
       const tonicColor = primaryTarget === "tonic"
         ? primaryColor
         : auxiliaryTarget === "tonic"
-        ? auxiliaryColor
-        : textColor;
+          ? auxiliaryColor
+          : textColor;
       const tonicFont = (primaryTarget === "tonic" || auxiliaryTarget === "tonic")
         ? "bold 14px Arial"
         : "14px Arial";
@@ -609,8 +674,8 @@ export default function TonefieldCanvas({
       cancelAnimationFrame(animationFrameRef.current);
     }
 
-    if (selectedHitPoint) {
-      // Start animation when a hit point is selected
+    if (selectedHitPoint || hitPointCoord) {
+      // Start animation when a hit point is selected OR hitPointCoord exists
       animationStartRef.current = Date.now();
 
       const animate = () => {
@@ -642,4 +707,8 @@ export default function TonefieldCanvas({
       style={{ maxWidth: "100%" }}
     />
   );
-}
+});
+
+TonefieldCanvas.displayName = "TonefieldCanvas";
+
+export default TonefieldCanvas;
