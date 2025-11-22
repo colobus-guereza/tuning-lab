@@ -28,5 +28,6 @@ export interface HitPointData {
   hit_count: number;
   location: 'internal' | 'external';
   intent: string;
+  hammering_type?: 'SNAP' | 'PULL' | 'PRESS' | null;  // 해머링 타법 (튕겨치기/당겨치기/눌러치기)
   created_at?: string;
 }

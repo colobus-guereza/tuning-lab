@@ -25,21 +25,32 @@ export const PHYSICS_CONFIG = {
     octave: 0.9, // 장축 (유연함)
     fifth: 1.2, // 단축 (뻣뻣함)
   },
+
+  // [5] 해머링 타입 결정 임계값 (단위: Hz)
+  HAMMERING_RULES: {
+    INTERNAL: {
+      SNAP_LIMIT: 1.0,   // 1.0 이하 튕겨치기
+      PRESS_START: 10.0  // 10.0 이상 눌러치기 (그 사이는 당겨치기)
+    },
+    EXTERNAL: {
+      SNAP_LIMIT: 5.0    // 5.0 이하 튕겨치기 (그 이상 눌러치기)
+    }
+  },
 } as const;
 
 /**
  * 최적 타격 강도 및 타수 계산 함수
- * @param rawHz - 주 조율 대상의 오차 절대값 (예: 17.7)
+ * @param rawHz - 주 조율 대상의 오차값 (부호 포함, 예: -17.7 또는 +17.7)
  * @param coord - 계산된 좌표 {x, y} (예: {x: -0.2, y: -0.749})
  * @param mode - 조율 대상 모드 ('tonic', 'octave', 'fifth')
- * @returns {force: number, count: number} - 최적 강도와 타수
+ * @returns {force: number, count: number, hammeringType: string} - 최적 강도, 타수, 해머링 타입
  */
 export function calculateImpactPower(
   rawHz: number,
   coord: { x: number; y: number },
   mode: "tonic" | "octave" | "fifth"
-): { force: number; count: number } {
-  const { THRESHOLD_C, LIMIT, SCALING_S, STIFFNESS_K, TONEFIELD_RADIUS_Y, TONEFIELD_RADIUS_X } = PHYSICS_CONFIG;
+): { force: number; count: number; hammeringType: "SNAP" | "PULL" | "PRESS" } {
+  const { THRESHOLD_C, LIMIT, SCALING_S, STIFFNESS_K, TONEFIELD_RADIUS_Y, TONEFIELD_RADIUS_X, HAMMERING_RULES } = PHYSICS_CONFIG;
 
   // 1. [상대적 효율 계산] Relative Efficiency (꼭지점 기준 정규화)
   // 모드별로 진동 축이 다르므로 기준 좌표를 다르게 적용
@@ -96,9 +107,33 @@ export function calculateImpactPower(
     }
   }
 
-  // 소수점 1자리까지 반올림하여 리턴
+  // 4. [해머링 타입 결정] Hammering Style
+  // 기준: 원본 오차(rawHz)의 부호(방향) 및 절대값(크기)
+  const absHz = Math.abs(rawHz);
+  let hammeringType: "SNAP" | "PULL" | "PRESS";
+
+  if (rawHz < 0) {
+    // 내부 타격 (음수: 상향)
+    if (absHz <= HAMMERING_RULES.INTERNAL.SNAP_LIMIT) {
+      hammeringType = "SNAP"; // 튕겨치기
+    } else if (absHz < HAMMERING_RULES.INTERNAL.PRESS_START) {
+      hammeringType = "PULL"; // 당겨치기
+    } else {
+      hammeringType = "PRESS"; // 눌러치기
+    }
+  } else {
+    // 외부 타격 (양수: 하향)
+    if (absHz <= HAMMERING_RULES.EXTERNAL.SNAP_LIMIT) {
+      hammeringType = "SNAP"; // 튕겨치기
+    } else {
+      hammeringType = "PRESS"; // 눌러치기 (외부에는 PULL 없음)
+    }
+  }
+
+  // 최종 결과 반환 (소수점 1자리까지 반올림)
   return {
     force: parseFloat(finalForce.toFixed(1)),
     count: finalCount,
+    hammeringType: hammeringType,
   };
 }

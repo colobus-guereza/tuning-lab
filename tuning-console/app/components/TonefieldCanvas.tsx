@@ -18,6 +18,7 @@ interface HitPointData {
   hit_count: number;
   location: string;
   intent: string;
+  hammering_type?: 'SNAP' | 'PULL' | 'PRESS' | null;
 }
 
 interface TonefieldCanvasProps {
@@ -28,6 +29,7 @@ interface TonefieldCanvasProps {
   selectedHitPoint?: HitPointData | null;
   calculatedForce?: number | null;
   calculatedCount?: number | null;
+  calculatedHammeringType?: "SNAP" | "PULL" | "PRESS" | null;
 }
 
 export default function TonefieldCanvas({
@@ -38,6 +40,7 @@ export default function TonefieldCanvas({
   selectedHitPoint,
   calculatedForce,
   calculatedCount,
+  calculatedHammeringType,
 }: TonefieldCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -271,14 +274,24 @@ export default function TonefieldCanvas({
 
       // Draw calculated force × count label if available
       if (calculatedForce !== null && calculatedCount !== null) {
-        const labelText = `${calculatedForce} × ${calculatedCount}`;
+        // Korean translation mapping
+        const hammeringTypeMap: Record<"SNAP" | "PULL" | "PRESS", string> = {
+          SNAP: "튕겨치기",
+          PULL: "당겨치기",
+          PRESS: "눌러치기"
+        };
+
+        const hammeringText = calculatedHammeringType
+          ? ` (${hammeringTypeMap[calculatedHammeringType]})`
+          : "";
+        const labelText = `${calculatedForce} × ${calculatedCount}${hammeringText}`;
 
         // Position label to the right-top of the marker
         const labelX = canvasX + 15;
         const labelY = canvasY - 8;
 
         // Draw semi-transparent background for better readability
-        ctx.font = "bold 18px Arial";
+        ctx.font = "bold 16px Arial";
         const textMetrics = ctx.measureText(labelText);
         const padding = 6;
         const bgWidth = textMetrics.width + padding * 2;
@@ -294,7 +307,7 @@ export default function TonefieldCanvas({
 
         // Draw text
         ctx.fillStyle = isDark ? "#f9fafb" : "#1f2937"; // gray-50 : gray-800
-        ctx.font = "bold 18px Arial";
+        ctx.font = "bold 16px Arial";
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
         ctx.fillText(labelText, labelX, labelY - bgHeight + padding + 3);
@@ -415,7 +428,17 @@ export default function TonefieldCanvas({
       yPos += 18;
       ctx.fillText(`(${selectedHitPoint.coordinate_x.toFixed(2)}, ${selectedHitPoint.coordinate_y.toFixed(2)})`, CANVAS_SIZE - PADDING - 10, yPos);
       yPos += 18;
-      ctx.fillText(`${selectedHitPoint.strength >= 0 ? '+' : ''}${selectedHitPoint.strength} × ${selectedHitPoint.hit_count}`, CANVAS_SIZE - PADDING - 10, yPos);
+
+      // Add hammering type to strength × count display
+      const hammeringTypeMap: Record<"SNAP" | "PULL" | "PRESS", string> = {
+        SNAP: "튕겨치기",
+        PULL: "당겨치기",
+        PRESS: "눌러치기"
+      };
+      const hammeringText = selectedHitPoint.hammering_type
+        ? ` (${hammeringTypeMap[selectedHitPoint.hammering_type]})`
+        : "";
+      ctx.fillText(`${selectedHitPoint.strength >= 0 ? '+' : ''}${selectedHitPoint.strength} × ${selectedHitPoint.hit_count}${hammeringText}`, CANVAS_SIZE - PADDING - 10, yPos);
 
     }
   };
@@ -471,7 +494,7 @@ export default function TonefieldCanvas({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [selectedCoords, hitPointCoord, hitPointLocation, selectedHitPoint]);
+  }, [selectedCoords, hitPointCoord, hitPointLocation, selectedHitPoint, calculatedForce, calculatedCount, calculatedHammeringType]);
 
   return (
     <canvas

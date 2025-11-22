@@ -24,6 +24,7 @@ export default function HomePage() {
   } | null>(null);
   const [calculatedForce, setCalculatedForce] = useState<number | null>(null);
   const [calculatedCount, setCalculatedCount] = useState<number | null>(null);
+  const [calculatedHammeringType, setCalculatedHammeringType] = useState<"SNAP" | "PULL" | "PRESS" | null>(null);
   const [hitPointStrength, setHitPointStrength] = useState<string>("");
   const [hitPointHitCount, setHitPointHitCount] = useState<string>("");
   const [hitPointLocation, setHitPointLocation] = useState<"external" | "internal" | null>("internal");
@@ -253,10 +254,11 @@ export default function HomePage() {
     const targetDisplay = aText ? `${pText} (+${aText})` : pText;
 
     // 7단계: 최적 강도 및 타수 자동 계산
-    // 주 조율 대상의 원본 오차값(절대값)과 계산된 좌표를 사용
-    const primaryErrorValue = primary.type === 'tonic' ? eT
-                             : primary.type === 'octave' ? eO
-                             : eF;
+    // 주 조율 대상의 원본 오차값(부호 포함)과 계산된 좌표를 사용
+    // 해머링 타입 결정을 위해 부호 정보 필수!
+    const primaryErrorValue = primary.type === 'tonic' ? tonicVal
+                             : primary.type === 'octave' ? octaveVal
+                             : fifthVal;
     const impactResult = calculateImpactPower(primaryErrorValue, { x, y }, primaryTarget);
 
     // 상태 설정
@@ -267,6 +269,7 @@ export default function HomePage() {
     setHitPointCoord({ x, y });
     setCalculatedForce(impactResult.force);
     setCalculatedCount(impactResult.count);
+    setCalculatedHammeringType(impactResult.hammeringType);
     // 타점 파라미터 입력 필드에도 자동 입력
     setHitPointStrength(impactResult.force.toString());
     setHitPointHitCount(impactResult.count.toString());
@@ -294,6 +297,16 @@ export default function HomePage() {
   const handleCanvasClick = (x: number, y: number) => {
     // Clicking sets the hit point coordinate
     setHitPointCoord({ x, y });
+  };
+
+  const handleClearHitPoint = () => {
+    // 선택된 좌표 및 계산된 값 모두 초기화
+    setHitPointCoord(null);
+    setCalculatedForce(null);
+    setCalculatedCount(null);
+    setCalculatedHammeringType(null);
+    setHitPointStrength("");
+    setHitPointHitCount("");
   };
 
   const handleClearCoords = () => {
@@ -348,6 +361,7 @@ export default function HomePage() {
             hit_count: parseInt(hitPointHitCount),
             location: hitPointLocation,
             intent: hitPointIntent,
+            hammering_type: calculatedHammeringType,
           },
         ]);
 
@@ -362,6 +376,7 @@ export default function HomePage() {
         setHitPointCoord(null);
         setCalculatedForce(null);
         setCalculatedCount(null);
+        setCalculatedHammeringType(null);
         setHitPointStrength("");
         setHitPointHitCount("");
         setHitPointLocation("internal");
@@ -439,6 +454,13 @@ export default function HomePage() {
       console.error("삭제 중 오류 발생:", err);
       alert("삭제 중 오류가 발생했습니다. 콘솔을 확인해주세요.");
     }
+  };
+
+  // 해머링 타입 한글 매핑
+  const hammeringTypeMap: Record<"SNAP" | "PULL" | "PRESS", string> = {
+    SNAP: "튕겨치기",
+    PULL: "당겨치기",
+    PRESS: "눌러치기"
   };
 
   // 협력 관계 판별 - 어느 필드를 강조할지 결정
@@ -674,6 +696,49 @@ export default function HomePage() {
                 타점 파라미터
               </h3>
 
+              {/* 1단계: 조율대상과 의도 그리드 */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      조율대상
+                    </label>
+                    {hitPointTargetDisplay && (
+                      <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                        ✨ 자동 계산됨
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={hitPointTargetDisplay}
+                    readOnly
+                    placeholder="조율대상"
+                    className="w-full px-2.5 sm:px-3.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold cursor-not-allowed text-center"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      의도
+                    </label>
+                    {hitPointIntent && (
+                      <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                        ✨ 자동 제안됨
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={hitPointIntent}
+                    onChange={(e) => setHitPointIntent(e.target.value)}
+                    placeholder="의도"
+                    className="w-full px-2.5 sm:px-3.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors text-center"
+                  />
+                </div>
+              </div>
+
+              {/* 2단계: 위치 */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -711,6 +776,7 @@ export default function HomePage() {
                 </div>
               </div>
 
+              {/* 3단계: 좌표 */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -735,7 +801,7 @@ export default function HomePage() {
                 />
               </div>
 
-              {/* 강도와 타수 그리드 */}
+              {/* 4단계: 강도와 타수 그리드 */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
@@ -779,46 +845,25 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* 조율대상과 의도 그리드 */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      조율대상
-                    </label>
-                    {hitPointTargetDisplay && (
-                      <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                        ✨ 자동 계산됨
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    type="text"
-                    value={hitPointTargetDisplay}
-                    readOnly
-                    placeholder="조율대상"
-                    className="w-full px-2.5 sm:px-3.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold cursor-not-allowed text-center"
-                  />
+              {/* 5단계: 해머링 타입 */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    해머링 타입
+                  </label>
+                  {calculatedHammeringType && (
+                    <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                      ✨ 자동 계산됨
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      의도
-                    </label>
-                    {hitPointIntent && (
-                      <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                        ✨ 자동 제안됨
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    type="text"
-                    value={hitPointIntent}
-                    onChange={(e) => setHitPointIntent(e.target.value)}
-                    placeholder="의도"
-                    className="w-full px-2.5 sm:px-3.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors text-center"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={calculatedHammeringType ? hammeringTypeMap[calculatedHammeringType] : ""}
+                  readOnly
+                  placeholder="해머링 타입이 자동으로 계산됩니다"
+                  className="w-full px-2.5 sm:px-3.5 py-1.5 border-2 rounded-lg bg-purple-50 dark:bg-purple-900/20 border-purple-300 dark:border-purple-700 text-purple-900 dark:text-purple-100 font-bold cursor-not-allowed text-center text-base"
+                />
               </div>
 
               <button
@@ -880,7 +925,20 @@ export default function HomePage() {
         </div>
 
         {/* Center: Tonefield Canvas */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg transition-colors lg:col-span-2 xl:col-span-1">
+        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg transition-colors lg:col-span-2 xl:col-span-1 relative">
+          {/* Clear coordinate button (container-level positioning) */}
+          {hitPointCoord && (
+            <button
+              onClick={handleClearHitPoint}
+              className="absolute top-4 right-4 sm:top-6 sm:right-6 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white rounded-full shadow-lg transition-colors z-10"
+              title="선택된 좌표 삭제"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+
           <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white">
             톤필드좌표계
           </h2>
@@ -895,6 +953,7 @@ export default function HomePage() {
             selectedHitPoint={selectedHitPoint}
             calculatedForce={calculatedForce}
             calculatedCount={calculatedCount}
+            calculatedHammeringType={calculatedHammeringType}
           />
 
           {/* Reset button below canvas */}
@@ -1127,6 +1186,16 @@ export default function HomePage() {
                                 {hitPoint.strength >= 0 ? '+' : ''}{hitPoint.strength} × {hitPoint.hit_count}
                               </span>
                             </div>
+
+                            {/* 4. 해머링 타입 박스 */}
+                            {hitPoint.hammering_type && (
+                              <div className="flex justify-between items-center bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-300 dark:border-purple-700 rounded px-3 py-2">
+                                <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">해머링 타입</span>
+                                <span className="font-bold text-sm text-purple-900 dark:text-purple-100 tracking-wide">
+                                  {hammeringTypeMap[hitPoint.hammering_type as "SNAP" | "PULL" | "PRESS"]}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </>
@@ -1151,6 +1220,11 @@ export default function HomePage() {
                         {/* 강도×타수 */}
                         <div className="text-gray-700 dark:text-gray-300">
                           {hitPoint.strength >= 0 ? '+' : ''}{hitPoint.strength} × {hitPoint.hit_count}
+                          {hitPoint.hammering_type && (
+                            <span className="ml-1.5 text-xs font-medium text-purple-600 dark:text-purple-400">
+                              ({hammeringTypeMap[hitPoint.hammering_type as "SNAP" | "PULL" | "PRESS"]})
+                            </span>
+                          )}
                         </div>
 
                         {/* 삭제 버튼 */}
