@@ -134,10 +134,11 @@ export default function HomePage() {
     const radiusX = 0.6;  // 가로 반지름 (5도 방향)
     const radiusY = 0.85; // 세로 반지름 (토닉/옥타브 방향)
 
-    // 1단계: 가중치 적용하여 힘(Force) 계산
-    const forceTonic = eT / 1.0;   // 가중치 1
-    const forceOctave = eO / 2.0;  // 가중치 2
-    const forceFifth = eF / 3.0;   // 가중치 3
+    // 1단계: 물리적 힘(Force) 계산 - Raw Hz 그대로 사용
+    // 좌표는 "실제 변형량 비율"로 결정 (진단용 가중치 사용 안 함)
+    const forceTonic = eT;    // 원본 오차값 (Hz)
+    const forceOctave = eO;   // 원본 오차값 (Hz)
+    const forceFifth = eF;    // 원본 오차값 (Hz)
 
     // 2순위 찾기 (반구 결정용)
     const scores = [
@@ -541,21 +542,21 @@ export default function HomePage() {
 
       <div className="max-w-[1920px] mx-auto grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
         {/* Left: Controls */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg transition-colors">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-white dark:bg-gray-800 p-3 sm:p-5 rounded-lg shadow-lg transition-colors">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 dark:text-white">조율오차 입력</h2>
             <button
               onClick={handleRandomize}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white font-bold text-base sm:text-lg flex items-center justify-center transition-colors shadow-md flex-shrink-0"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white font-bold text-base sm:text-lg flex items-center justify-center transition-colors shadow-md flex-shrink-0"
               title="Generate random values (-30 ~ +30)"
             >
               R
             </button>
           </div>
 
-          <div className="space-y-3 sm:space-y-4">
+          <div className="space-y-2 sm:space-y-3">
             <div className="flex items-center gap-2 sm:gap-3">
-              <label className={`text-sm sm:text-base font-semibold min-w-[60px] sm:min-w-[80px] flex items-center gap-1 transition-all ${
+              <label className={`text-sm sm:text-base font-semibold min-w-[50px] sm:min-w-[70px] flex items-center gap-1 transition-all ${
                 tuningTarget === "fifth"
                   ? "text-red-600 dark:text-red-400"
                   : cooperativeField === "fifth"
@@ -578,7 +579,7 @@ export default function HomePage() {
                   }
                 }}
                 disabled={excludedFields.includes("fifth")}
-                className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${
+                className={`flex-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${
                   tuningTarget === "fifth"
                     ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
                     : cooperativeField === "fifth"
@@ -591,7 +592,7 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              <label className={`text-sm sm:text-base font-semibold min-w-[60px] sm:min-w-[80px] flex items-center gap-1 transition-all ${
+              <label className={`text-sm sm:text-base font-semibold min-w-[50px] sm:min-w-[70px] flex items-center gap-1 transition-all ${
                 tuningTarget === "octave"
                   ? "text-red-600 dark:text-red-400"
                   : cooperativeField === "octave"
@@ -614,7 +615,7 @@ export default function HomePage() {
                   }
                 }}
                 disabled={excludedFields.includes("octave")}
-                className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${
+                className={`flex-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${
                   tuningTarget === "octave"
                     ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
                     : cooperativeField === "octave"
@@ -627,7 +628,7 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              <label className={`text-sm sm:text-base font-semibold min-w-[60px] sm:min-w-[80px] flex items-center gap-1 transition-all ${
+              <label className={`text-sm sm:text-base font-semibold min-w-[50px] sm:min-w-[70px] flex items-center gap-1 transition-all ${
                 tuningTarget === "tonic"
                   ? "text-red-600 dark:text-red-400"
                   : cooperativeField === "tonic"
@@ -650,7 +651,7 @@ export default function HomePage() {
                   }
                 }}
                 disabled={excludedFields.includes("tonic")}
-                className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${
+                className={`flex-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 border-2 rounded-lg text-xl sm:text-2xl font-bold text-center transition-all ${
                   tuningTarget === "tonic"
                     ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400"
                     : cooperativeField === "tonic"
@@ -664,17 +665,17 @@ export default function HomePage() {
           </div>
 
           {/* Hit Point Input Fields */}
-            <div className={`mt-4 sm:mt-6 p-3 sm:p-4 border rounded-lg space-y-2 sm:space-y-3 transition-all ${
+            <div className={`mt-3 sm:mt-5 p-2.5 sm:p-3.5 border rounded-lg space-y-2 sm:space-y-2.5 transition-all ${
               isSaveEnabled
                 ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 opacity-100"
                 : "bg-gray-50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600 opacity-60"
             }`}>
-              <h3 className="font-semibold text-sm sm:text-base text-blue-900 dark:text-blue-300 mb-2 sm:mb-3">
+              <h3 className="font-semibold text-sm sm:text-base text-blue-900 dark:text-blue-300 mb-1.5 sm:mb-2.5">
                 타점 파라미터
               </h3>
 
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-1.5">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     위치
                   </label>
@@ -684,11 +685,11 @@ export default function HomePage() {
                     </span>
                   )}
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-2.5">
                   <button
                     type="button"
                     onClick={() => setHitPointLocation("internal")}
-                    className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                    className={`flex-1 py-1.5 px-3 rounded-lg font-medium transition-colors ${
                       hitPointLocation === "internal"
                         ? "bg-red-600 text-white dark:bg-red-600 hover:bg-red-700 dark:hover:bg-red-700"
                         : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
@@ -699,7 +700,7 @@ export default function HomePage() {
                   <button
                     type="button"
                     onClick={() => setHitPointLocation("external")}
-                    className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                    className={`flex-1 py-1.5 px-3 rounded-lg font-medium transition-colors ${
                       hitPointLocation === "external"
                         ? "bg-blue-600 text-white dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-700"
                         : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
@@ -711,7 +712,7 @@ export default function HomePage() {
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-1.5">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     좌표
                   </label>
@@ -730,56 +731,77 @@ export default function HomePage() {
                   }
                   readOnly
                   placeholder="자동으로 계산됩니다"
-                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white cursor-not-allowed"
+                  className="w-full px-2.5 sm:px-3.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white cursor-not-allowed text-center font-bold text-base sm:text-lg"
                 />
               </div>
 
               {/* 강도와 타수 그리드 */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    강도
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      강도
+                    </label>
+                    {calculatedForce !== null && (
+                      <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                        ✨ 자동 계산됨
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     inputMode="decimal"
                     value={hitPointStrength}
                     onChange={(e) => setHitPointStrength(e.target.value)}
                     placeholder="강도"
-                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+                    className="w-full px-2.5 sm:px-3.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors text-center"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    타수
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      타수
+                    </label>
+                    {calculatedCount !== null && (
+                      <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                        ✨ 자동 계산됨
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     inputMode="numeric"
                     value={hitPointHitCount}
                     onChange={(e) => setHitPointHitCount(e.target.value)}
                     placeholder="타수"
-                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+                    className="w-full px-2.5 sm:px-3.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors text-center"
                   />
                 </div>
               </div>
 
               {/* 조율대상과 의도 그리드 */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    조율대상
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      조율대상
+                    </label>
+                    {hitPointTargetDisplay && (
+                      <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                        ✨ 자동 계산됨
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={hitPointTargetDisplay}
                     readOnly
                     placeholder="조율대상"
-                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold cursor-not-allowed"
+                    className="w-full px-2.5 sm:px-3.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold cursor-not-allowed text-center"
                   />
                 </div>
                 <div>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-1.5">
                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       의도
                     </label>
@@ -794,7 +816,7 @@ export default function HomePage() {
                     value={hitPointIntent}
                     onChange={(e) => setHitPointIntent(e.target.value)}
                     placeholder="의도"
-                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+                    className="w-full px-2.5 sm:px-3.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors text-center"
                   />
                 </div>
               </div>
@@ -802,7 +824,7 @@ export default function HomePage() {
               <button
                 onClick={handleSaveHitPoint}
                 disabled={!isSaveEnabled}
-                className={`w-full py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold transition-colors ${
+                className={`w-full py-2 sm:py-2.5 px-3 sm:px-5 rounded-lg font-semibold text-sm transition-colors ${
                   isSaveEnabled
                     ? "bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white"
                     : "bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"

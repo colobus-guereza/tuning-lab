@@ -15,7 +15,11 @@ export const PHYSICS_CONFIG = {
     return this.THRESHOLD_C * this.SAFETY_RATIO;
   },
 
-  // [3] 모드별 구조 강성 계수 (톤필드 기하학적 특성)
+  // [3] 톤필드 기하학적 상수 (효율 계산용)
+  TONEFIELD_RADIUS_Y: 0.85, // 세로 반지름 (토닉/옥타브 축 꼭지점)
+  TONEFIELD_RADIUS_X: 0.6,  // 가로 반지름 (5도 축 꼭지점)
+
+  // [4] 모드별 구조 강성 계수 (톤필드 기하학적 특성)
   STIFFNESS_K: {
     tonic: 1.0, // 기준
     octave: 0.9, // 장축 (유연함)
@@ -35,11 +39,27 @@ export function calculateImpactPower(
   coord: { x: number; y: number },
   mode: "tonic" | "octave" | "fifth"
 ): { force: number; count: number } {
-  const { THRESHOLD_C, LIMIT, SCALING_S, STIFFNESS_K } = PHYSICS_CONFIG;
+  const { THRESHOLD_C, LIMIT, SCALING_S, STIFFNESS_K, TONEFIELD_RADIUS_Y, TONEFIELD_RADIUS_X } = PHYSICS_CONFIG;
 
-  // 1. [벡터 효율 보정] 빗겨 칠 때(대각선) 에너지 손실 보정
-  // 주 축(Main Axis)에 얼마나 가까운지로 효율 판단 (0.1은 최소 안전장치)
-  const efficiency = Math.max(Math.abs(coord.y), 0.1);
+  // 1. [상대적 효율 계산] Relative Efficiency (꼭지점 기준 정규화)
+  // 모드별로 진동 축이 다르므로 기준 좌표를 다르게 적용
+  // - 5도(Fifth): X축 진동 → X좌표 / RADIUS_X
+  // - 토닉/옥타브: Y축 진동 → Y좌표 / RADIUS_Y
+  let currentPos = 0;
+  let vertexPos = 1.0;
+
+  if (mode === 'fifth') {
+    // 5도는 가로축(X) 기준
+    currentPos = Math.abs(coord.x);
+    vertexPos = TONEFIELD_RADIUS_X; // 0.6
+  } else {
+    // 토닉, 옥타브는 세로축(Y) 기준
+    currentPos = Math.abs(coord.y);
+    vertexPos = TONEFIELD_RADIUS_Y; // 0.85
+  }
+
+  // 상대적 효율 (최소 10% 안전장치)
+  const efficiency = Math.max(currentPos / vertexPos, 0.1);
 
   // 효율을 감안한 유효 오차 거리 (효율이 낮으면 거리가 먼 것으로 간주)
   const effectiveHz = Math.abs(rawHz) / efficiency;
