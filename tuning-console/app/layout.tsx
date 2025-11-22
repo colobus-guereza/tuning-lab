@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "타점입력",
+  title: "타점 모델",
   description: "조율 실험실 타점 입력 시스템",
 };
 

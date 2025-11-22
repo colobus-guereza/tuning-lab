@@ -30,6 +30,16 @@ interface TonefieldCanvasProps {
   calculatedForce?: number | null;
   calculatedCount?: number | null;
   calculatedHammeringType?: "SNAP" | "PULL" | "PRESS" | null;
+  // For displaying parameters when hitPointCoord is active (auto-calculated)
+  tonic?: number;
+  octave?: number;
+  fifth?: number;
+  primaryTarget?: "tonic" | "octave" | "fifth" | null;
+  auxiliaryTarget?: "tonic" | "octave" | "fifth" | null;
+  targetDisplay?: string;
+  intent?: string;
+  strength?: number;
+  hitCount?: number;
 }
 
 export default function TonefieldCanvas({
@@ -41,6 +51,15 @@ export default function TonefieldCanvas({
   calculatedForce,
   calculatedCount,
   calculatedHammeringType,
+  tonic,
+  octave,
+  fifth,
+  primaryTarget,
+  auxiliaryTarget,
+  targetDisplay,
+  intent,
+  strength,
+  hitCount,
 }: TonefieldCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -245,11 +264,34 @@ export default function TonefieldCanvas({
       ctx.lineTo(canvasX - 8, canvasY + 8);
       ctx.stroke();
 
-      // Draw index number
-      ctx.fillStyle = "green";
-      ctx.font = "12px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText(String(index + 1), canvasX, canvasY - 12);
+      // Draw coordinate label with same style as force × count label
+      const labelText = `(${coord.x.toFixed(3)}, ${coord.y.toFixed(3)})`;
+      
+      // Position label to the right-top of the marker
+      const labelX = canvasX + 15;
+      const labelY = canvasY - 8;
+
+      // Draw semi-transparent background for better readability
+      ctx.font = "bold 16px Arial";
+      const textMetrics = ctx.measureText(labelText);
+      const padding = 6;
+      const bgWidth = textMetrics.width + padding * 2;
+      const bgHeight = 24;
+
+      ctx.fillStyle = isDark ? "rgba(31, 41, 55, 0.9)" : "rgba(255, 255, 255, 0.9)"; // gray-800 : white
+      ctx.fillRect(labelX - padding, labelY - bgHeight + padding, bgWidth, bgHeight);
+
+      // Draw border
+      ctx.strokeStyle = isDark ? "#6b7280" : "#9ca3af"; // gray-500 : gray-400
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(labelX - padding, labelY - bgHeight + padding, bgWidth, bgHeight);
+
+      // Draw text
+      ctx.fillStyle = isDark ? "#f9fafb" : "#1f2937"; // gray-50 : gray-800
+      ctx.font = "bold 16px Arial";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText(labelText, labelX, labelY - bgHeight + padding + 3);
     });
 
     // Draw hit point coordinate marker with location-based color
@@ -272,7 +314,9 @@ export default function TonefieldCanvas({
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Draw calculated force × count label if available
+      // Draw label: force × count if available, otherwise coordinate
+      let labelText: string;
+      
       if (calculatedForce !== null && calculatedCount !== null) {
         // Korean translation mapping
         const hammeringTypeMap: Record<"SNAP" | "PULL" | "PRESS", string> = {
@@ -284,34 +328,37 @@ export default function TonefieldCanvas({
         const hammeringText = calculatedHammeringType
           ? ` (${hammeringTypeMap[calculatedHammeringType]})`
           : "";
-        const labelText = `${calculatedForce} × ${calculatedCount}${hammeringText}`;
-
-        // Position label to the right-top of the marker
-        const labelX = canvasX + 15;
-        const labelY = canvasY - 8;
-
-        // Draw semi-transparent background for better readability
-        ctx.font = "bold 16px Arial";
-        const textMetrics = ctx.measureText(labelText);
-        const padding = 6;
-        const bgWidth = textMetrics.width + padding * 2;
-        const bgHeight = 24;
-
-        ctx.fillStyle = isDark ? "rgba(31, 41, 55, 0.9)" : "rgba(255, 255, 255, 0.9)"; // gray-800 : white
-        ctx.fillRect(labelX - padding, labelY - bgHeight + padding, bgWidth, bgHeight);
-
-        // Draw border
-        ctx.strokeStyle = isDark ? "#6b7280" : "#9ca3af"; // gray-500 : gray-400
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(labelX - padding, labelY - bgHeight + padding, bgWidth, bgHeight);
-
-        // Draw text
-        ctx.fillStyle = isDark ? "#f9fafb" : "#1f2937"; // gray-50 : gray-800
-        ctx.font = "bold 16px Arial";
-        ctx.textAlign = "left";
-        ctx.textBaseline = "top";
-        ctx.fillText(labelText, labelX, labelY - bgHeight + padding + 3);
+        labelText = `${calculatedForce} × ${calculatedCount}${hammeringText}`;
+      } else {
+        // Show coordinate if force × count is not available
+        labelText = `(${hitPointCoord.x.toFixed(3)}, ${hitPointCoord.y.toFixed(3)})`;
       }
+
+      // Position label to the right-top of the marker
+      const labelX = canvasX + 15;
+      const labelY = canvasY - 8;
+
+      // Draw semi-transparent background for better readability
+      ctx.font = "bold 16px Arial";
+      const textMetrics = ctx.measureText(labelText);
+      const padding = 6;
+      const bgWidth = textMetrics.width + padding * 2;
+      const bgHeight = 24;
+
+      ctx.fillStyle = isDark ? "rgba(31, 41, 55, 0.9)" : "rgba(255, 255, 255, 0.9)"; // gray-800 : white
+      ctx.fillRect(labelX - padding, labelY - bgHeight + padding, bgWidth, bgHeight);
+
+      // Draw border
+      ctx.strokeStyle = isDark ? "#6b7280" : "#9ca3af"; // gray-500 : gray-400
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(labelX - padding, labelY - bgHeight + padding, bgWidth, bgHeight);
+
+      // Draw text
+      ctx.fillStyle = isDark ? "#f9fafb" : "#1f2937"; // gray-50 : gray-800
+      ctx.font = "bold 16px Arial";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText(labelText, labelX, labelY - bgHeight + padding + 3);
     }
 
     // Draw selected hit point from recent list with animation
@@ -441,6 +488,95 @@ export default function TonefieldCanvas({
       ctx.fillText(`${selectedHitPoint.strength >= 0 ? '+' : ''}${selectedHitPoint.strength} × ${selectedHitPoint.hit_count}${hammeringText}`, CANVAS_SIZE - PADDING - 10, yPos);
 
     }
+
+    // Draw hit point information for auto-calculated hit point (when hitPointCoord exists but selectedHitPoint doesn't)
+    if (hitPointCoord && !selectedHitPoint && tonic !== undefined && octave !== undefined && fifth !== undefined) {
+      const canvasX = coordToCanvas(hitPointCoord.x, "x");
+      const canvasY = coordToCanvas(hitPointCoord.y, "y");
+
+      // Use same styling as selectedHitPoint
+      const textColor = isDark ? "#d1d5db" : "#374151"; // gray-300 : gray-700
+      const primaryColor = "#dc2626"; // red-600 for 주 (primary)
+      const auxiliaryColor = "#ea580c"; // orange-600 for 보조 (auxiliary)
+
+      // 1st Quadrant (Top-Left): Tuning Errors (top to bottom: 5도, 옥타브, 토닉)
+      ctx.font = "14px Arial";
+      ctx.textAlign = "left";
+
+      let yPos = PADDING + 20;
+
+      // Fifth (top position)
+      const fifthColor = primaryTarget === "fifth"
+        ? primaryColor
+        : auxiliaryTarget === "fifth"
+        ? auxiliaryColor
+        : textColor;
+      const fifthFont = (primaryTarget === "fifth" || auxiliaryTarget === "fifth")
+        ? "bold 14px Arial"
+        : "14px Arial";
+      ctx.fillStyle = fifthColor;
+      ctx.font = fifthFont;
+      ctx.fillText(`${fifth >= 0 ? '+' : ''}${Number(fifth).toFixed(1)}`, PADDING + 10, yPos);
+      yPos += 20;
+
+      // Octave (middle position)
+      const octaveColor = primaryTarget === "octave"
+        ? primaryColor
+        : auxiliaryTarget === "octave"
+        ? auxiliaryColor
+        : textColor;
+      const octaveFont = (primaryTarget === "octave" || auxiliaryTarget === "octave")
+        ? "bold 14px Arial"
+        : "14px Arial";
+      ctx.fillStyle = octaveColor;
+      ctx.font = octaveFont;
+      ctx.fillText(`${octave >= 0 ? '+' : ''}${Number(octave).toFixed(1)}`, PADDING + 10, yPos);
+      yPos += 20;
+
+      // Tonic (bottom position)
+      const tonicColor = primaryTarget === "tonic"
+        ? primaryColor
+        : auxiliaryTarget === "tonic"
+        ? auxiliaryColor
+        : textColor;
+      const tonicFont = (primaryTarget === "tonic" || auxiliaryTarget === "tonic")
+        ? "bold 14px Arial"
+        : "14px Arial";
+      ctx.fillStyle = tonicColor;
+      ctx.font = tonicFont;
+      ctx.fillText(`${tonic >= 0 ? '+' : ''}${Number(tonic).toFixed(1)}`, PADDING + 10, yPos);
+      yPos += 20;
+
+      // Tuning target and intent (4th line)
+      const targetText = targetDisplay || "타겟";
+      ctx.fillStyle = textColor;
+      ctx.font = "13px Arial";
+      ctx.fillText(`${targetText} ${intent || ""}`, PADDING + 10, yPos);
+
+      // 2nd Quadrant (Top-Right): Location, Coordinates, Strength, Hit Count
+      ctx.font = "13px Arial";
+      ctx.textAlign = "right";
+      ctx.fillStyle = textColor;
+
+      yPos = PADDING + 20;
+      ctx.fillText(`${hitPointLocation === "internal" ? "내부" : "외부"}`, CANVAS_SIZE - PADDING - 10, yPos);
+      yPos += 18;
+      ctx.fillText(`(${hitPointCoord.x.toFixed(2)}, ${hitPointCoord.y.toFixed(2)})`, CANVAS_SIZE - PADDING - 10, yPos);
+      yPos += 18;
+
+      // Add hammering type to strength × count display
+      const hammeringTypeMap: Record<"SNAP" | "PULL" | "PRESS", string> = {
+        SNAP: "튕겨치기",
+        PULL: "당겨치기",
+        PRESS: "눌러치기"
+      };
+      const hammeringText = calculatedHammeringType
+        ? ` (${hammeringTypeMap[calculatedHammeringType]})`
+        : "";
+      const strengthValue = strength !== undefined ? strength : calculatedForce || 0;
+      const countValue = hitCount !== undefined ? hitCount : calculatedCount || 0;
+      ctx.fillText(`${strengthValue >= 0 ? '+' : ''}${strengthValue} × ${countValue}${hammeringText}`, CANVAS_SIZE - PADDING - 10, yPos);
+    }
   };
 
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -494,7 +630,7 @@ export default function TonefieldCanvas({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [selectedCoords, hitPointCoord, hitPointLocation, selectedHitPoint, calculatedForce, calculatedCount, calculatedHammeringType]);
+  }, [selectedCoords, hitPointCoord, hitPointLocation, selectedHitPoint, calculatedForce, calculatedCount, calculatedHammeringType, tonic, octave, fifth, primaryTarget, auxiliaryTarget, targetDisplay, intent, strength, hitCount]);
 
   return (
     <canvas
